@@ -52,7 +52,7 @@ class Roll:
                 shift = np.random.randint(0, box[0].shape[-1], self.ndim)
             else:
                 shift = self.shift
-        if isintance(box, (list, tuple)):
+        if isinstance(box, (list, tuple)):
             return [self.__call__(b, shift=shift) for b in box]
         if self.ndim == 2:
             return np.roll(box, shift, axis=(-1, -2))
