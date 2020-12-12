@@ -39,7 +39,7 @@ class Roll:
         if self.ndim == 2:
             return np.roll(box, shift, axis=(-1, -2))
         elif self.ndim == 3:
-            return np.roll(box, shift, axis=(-1, -2))
+            return np.roll(box, shift, axis=(-1, -2, -3))
 
 
 class DownSample:
