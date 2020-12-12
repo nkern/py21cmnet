@@ -36,7 +36,7 @@ class Roll:
         shift = self.shift
         if shift is None:
             shift = np.random.randint(0, box.shape[-1], self.ndim)
-        if self.ndim == 2;
+        if self.ndim == 2:
             return np.roll(box, shift, axis=(-1, -2))
         elif self.ndim == 3:
             return np.roll(box, shift, axis=(-1, -2))
