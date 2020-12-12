@@ -4,6 +4,10 @@ dataset module
 import numpy as np
 from skimage import transform
 from torch.utils.data import Dataset, DataLoader
+import yaml
+import glob
+import os
+import shutil
 
 from . import utils
 
@@ -27,6 +31,17 @@ def load_21cmfast(fname, dtype=np.float32, N=512):
     return box
 
 
+def parse_file(fname):
+    """parse filename as a file or glob path
+
+    Args:
+        fname : str or list
+
+    """
+
+
+
+
 class Roll:
     """roll a box along last ndim axes"""
     def __init__(self, shift=None, ndim=3):
@@ -41,10 +56,15 @@ class Roll:
         self.shift = shift
         self.ndim = ndim
 
-    def __call__(self, box):
-        shift = self.shift
+    def __call__(self, box, shift=None):
+        # compute shift if not fed
         if shift is None:
-            shift = np.random.randint(0, box.shape[-1], self.ndim)
+            if self.shift is None:
+                shift = np.random.randint(0, box.shape[-1], self.ndim)
+            else:
+                shift = self.shift
+        if isintance(box, (list, tuple)):
+            return [self.__call__(b, shift=shift) for b in box]
         if self.ndim == 2:
             return np.roll(box, shift, axis=(-1, -2))
         elif self.ndim == 3:
@@ -63,6 +83,8 @@ class DownSample:
         self.ndim = ndim
 
     def __call__(self, box):
+        if isinstance(box, (list, tuple)):
+            return [self.__call__(b) for b in box]
         if self.ndim == 2:
             return box[..., ::self.thin, ::self.thin]
         elif self.ndim == 3:
@@ -71,42 +93,49 @@ class DownSample:
 
 
 class BoxDataset(Dataset):
+    """
+    Dataset for cosmological box output
+    """
 
-    def __init__(self, bfiles, transform=None, readf=load_21cmfast, **kwargs):
+    def __init__(self, Xfiles, yfiles, transform=None, readf=load_21cmfast, **kwargs):
         """Cosmological box dataset
         
         Args:
-            bfiles : list of str, or list of sublist of str
-                List of filepaths to box output.
+            Xfiles : list of str, list of sublist of str
+                List of filepaths to box output of feature values
                 If fed as a list of sublist of str, each element
                 in a sublist is a unique channel.
+            yfiles : list of str, list of sublist of str
+                List of filepaths to box output of target values.
+                Same rules apply as Xfiles, must match len of Xfiles
             transform : callable, list of callable
                 Box transformations
             readf : callable
                 box read function
 
-        Notes:
-            Returns ndarray (Nfiles, Nchans, box_shape)
+        Returns:
+            ndarray (Nfiles, Nchans, box_shape)
         """
-        if isinstance(bfiles, str):
-            bfiles = [bfiles]
-        self.bfiles = bfiles
+        self.Xfiles = Xfiles
+        self.yfiles = yfiles
         self.transform = transform
         self.readf = load_21cmfast
         self.kwargs = kwargs
+        assert len(self.Xfiles) == len(self.yfiles)
 
     def __len__(self):
-        return len(self.bfiles)
+        return len(self.Xfiles)
 
     def __getitem__(self, idx):
         # load box
-        box = self.readf(self.bfiles[idx], **self.kwargs)
+        X = self.readf(self.Xfiles[idx], **self.kwargs)
+        y = self.readf(self.yfiles[idx], **self.kwargs)
 
         # transform
         if self.transform is not None:
-            box = self.transform(box)
+            X, y = self.transform((X, y))
 
-        return box
+        return X, y
 
 
 
