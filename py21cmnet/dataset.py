@@ -31,17 +31,6 @@ def load_21cmfast(fname, dtype=np.float32, N=512):
     return box
 
 
-def parse_file(fname):
-    """parse filename as a file or glob path
-
-    Args:
-        fname : str or list
-
-    """
-
-
-
-
 class Roll:
     """roll a box along last ndim axes"""
     def __init__(self, shift=None, ndim=3):
