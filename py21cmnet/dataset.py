@@ -9,13 +9,22 @@ from . import utils
 
 
 def load_21cmfast(fname, dtype=np.float32, N=512):
-    """load 21cmfast box
+    """load 21cmfast box(es)
     Args:
-        fname : str
+        fname : str or list of str
+            If list of str, prepend boxes
         dtype : datatype
-        N : int, size of box length in pixels
+        N : int
+            size of box length in pixels
     """
-    return np.fromfile(fname, dtype=dtype).reshape(N, N, N)
+    if isinstance(fname, (list, tuple)):
+        box = np.empty((len(fname), N, N, N), dtype=dtype)
+        for i, fn in enumerate(fname):
+            box[i] = load_21cmfast(fn, dtype=dtype, N=N)
+    else:
+        box = np.fromfile(fname, dtype=dtype).reshape(N, N, N)
+
+    return box
 
 
 class Roll:
@@ -44,20 +53,20 @@ class Roll:
 
 class DownSample:
     """down sample a box along last ndim axes"""
-    def __init__(self, N=1, ndim=3):
+    def __init__(self, thin=1, ndim=3):
         """down sample a 2D or 3D box
         Args:
-            N : int, thinning factor
+            thin : int, thinning factor
             ndim : int, dimensionality of box
         """
-        self.N = N
+        self.thin = thin
         self.ndim = ndim
 
     def __call__(self, box):
         if self.ndim == 2:
-            return box[..., ::self.N, ::self.N]
+            return box[..., ::self.thin, ::self.thin]
         elif self.ndim == 3:
-            return box[..., ::self.N, ::self.N, ::self.N]
+            return box[..., ::self.thin, ::self.thin, ::self.thin]
 
 
 
@@ -67,14 +76,20 @@ class BoxDataset(Dataset):
         """Cosmological box dataset
         
         Args:
-            bfiles : str, list of str
-                List of filepaths to box output
+            bfiles : list of str, or list of sublist of str
+                List of filepaths to box output.
+                If fed as a list of sublist of str, each element
+                in a sublist is a unique channel.
             transform : callable, list of callable
                 Box transformations
             readf : callable
                 box read function
 
+        Notes:
+            Returns ndarray (Nfiles, Nchans, box_shape)
         """
+        if isinstance(bfiles, str):
+            bfiles = [bfiles]
         self.bfiles = bfiles
         self.transform = transform
         self.readf = load_21cmfast
