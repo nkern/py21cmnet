@@ -49,7 +49,7 @@ class Roll:
         # compute shift if not fed
         if shift is None:
             if self.shift is None:
-                shift = np.random.randint(0, box.shape[-1], self.ndim)
+                shift = np.random.randint(0, box[0].shape[-1], self.ndim)
             else:
                 shift = self.shift
         if isintance(box, (list, tuple)):
