@@ -199,7 +199,7 @@ class AutoEncoder3d(nn.Module):
         # setup encoder
         steps = []
         for encoder_kwargs in encoder_layers:
-            steps.apppend(Encoder3d(**encoder_kwargs))
+            steps.append(Encoder3d(**encoder_kwargs))
         self.encoder = nn.ModuleList(steps)
 
         # setup decoder
