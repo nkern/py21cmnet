@@ -4,12 +4,6 @@ dataset module
 import numpy as np
 from skimage import transform
 from torch.utils.data import Dataset, DataLoader
-import yaml
-import glob
-import os
-import shutil
-
-from . import utils
 
 
 def load_21cmfast(fname, dtype=np.float32, N=512):
@@ -125,14 +119,3 @@ class BoxDataset(Dataset):
             X, y = self.transform((X, y))
 
         return X, y
-
-
-
-
-
-
-
-
-
-
-
