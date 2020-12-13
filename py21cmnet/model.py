@@ -112,9 +112,8 @@ class Decoder3d(nn.Module):
                     'upconv'   : use nn.ConvTranspose3d
         """
         super(Decoder3d, self).__init__()
-        self.connection = connection
         steps = []
-
+ 
         # append convolutional steps
         for layer in conv_layers:
             steps.append(Conv3d(**layer))
