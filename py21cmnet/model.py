@@ -209,7 +209,7 @@ class AutoEncoder3d(nn.Module):
         self.decoder = nn.ModuleList(steps)
 
         # final layer: an encoder layer with no maxpooling
-        self.final = Encoder3d(final_layer, maxpool_kwargs=None)
+        self.final = Encoder3d(**final_layer, maxpool_kwargs=None)
 
         # setup activations on final layer output, one for each output channel
         if final_transforms is not None:
