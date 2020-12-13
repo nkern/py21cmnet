@@ -33,7 +33,7 @@ class Conv3d(nn.Module):
         if activation is not None:
             steps.append(getattr(nn, activation)(**act_kwargs))
         if batch_norm is not None:
-            steps.append(getattr(nn, batch_norm)(out_channels, **norm_kwargs))
+            steps.append(getattr(nn, batch_norm)(conv_kwargs['out_channels'], **norm_kwargs))
         self.model = nn.Sequential(*steps)
 
     def forward(self, X):
