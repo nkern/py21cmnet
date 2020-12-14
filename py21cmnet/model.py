@@ -94,7 +94,7 @@ class Encoder(nn.Module):
 
         # append convolutional steps
         for layer in conv_layers:
-            steps.append(getattr(nn, conv)(**layer))
+            steps.append(ConvNd(**layer))
 
         # append max pooling
         if maxpool is not None:
@@ -133,7 +133,7 @@ class Decoder(nn.Module):
  
         # append convolutional steps
         for layer in conv_layers:
-            steps.append(getattr(nn, conv)(**layer))
+            steps.append(ConvNd(**layer))
 
         # append upsampling
         if up_mode == 'upsample':
