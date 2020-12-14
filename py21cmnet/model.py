@@ -6,34 +6,44 @@ import torch
 from torch import nn
 
 
-class Conv3d(nn.Module):
+class ConvNd(nn.Module):
     """A convolution, activation and normalization block"""
 
-    def __init__(self, conv_kwargs, activation='ReLU', act_kwargs={},
-                 batch_norm='BatchNorm3d', norm_kwargs={}):
+    def __init__(self, conv_kwargs, conv='Conv3d',
+                 activation='ReLU', act_kwargs={},
+                 batch_norm='BatchNorm3d', norm_kwargs={},
+                 dropout='Dropout3d', dropout_kwargs={}):
         """
         A single convolutional block:
-            Conv3d -> activation -> batch normalization
+            ConvNd -> activation -> batch normalization (-> dropout)
 
         Args:
-            conv_kwargs : dict
-                keyword arguments for nn.Conv3d
+            conv_kwargs : dict, required
+                keyword arguments for torch.nn.Conv2d or Conv3d
+            conv : str, default = 'Conv3d'
+                Convolution class, e.g. 'Conv2d' or 'Conv3d'
             activation : str, default = 'ReLU'
                 activation function. None for no activation
-            act_kwargs : dict
+            act_kwargs : dict, default = {}
                 keyword arguments for activation function
             batch_norm : str, default = 'BatchNorm3d'
                 batch normalization. None for no normalization
-            norm_kwargs : dict
+            norm_kwargs : dict, default = {}
                 keyword arguments for batch normalization function
+            dropout : str, default='Dropout3d'
+                Dropout layer. None for no dropout
+            dropout_kwargs : dict, default = None
+                keyword args for a dropout layer. None for no dropout
         """
-        super(Conv3d, self).__init__()
+        super(ConvNd, self).__init__()
         steps = []
-        steps.append(nn.Conv3d(**conv_kwargs))
+        steps.append(getattr(nn, conv)(**conv_kwargs))
         if activation is not None:
             steps.append(getattr(nn, activation)(**act_kwargs))
         if batch_norm is not None:
             steps.append(getattr(nn, batch_norm)(conv_kwargs['out_channels'], **norm_kwargs))
+        if dropout is not None:
+            steps.append(getattr(nn, dropout)(**dropout_kwargs))
         self.model = nn.Sequential(*steps)
 
     def forward(self, X):
@@ -43,48 +53,52 @@ class Conv3d(nn.Module):
 class UpSample(nn.Module):
     """UpSample module for decoder"""
 
-    def __init__(self, upsample_kwargs, conv_kwargs):
+    def __init__(self, upsample_kwargs, conv_kwargs, conv='Conv3d'):
         """
         UpSample block for decoder
 
         Args:
-            upsample_kwargs : dict
+            upsample_kwargs : dict, required
                 keyword arguments for nn.Upsample
-            conv_kwargs : dict
-                keyword arguments for nn.Conv3d
+            conv_kwargs : dict, required
+                keyword arguments for nn.Conv2d or Conv3d
+            conv : str, default = 'Conv3d'
+                Convolution class, e.g. 'Conv2d' or 'Conv3d'
         """
         self.model = nn.Sequential(nn.Upsample(**upsample_kwargs),
-                                   nn.Conv3d(**conv_kwargs))
+                                   getattr(nn, conv)(**conv_kwargs))
 
     def forward(self, X):
         return self.model(X)
 
 
-class Encoder3d(nn.Module):
+class Encoder(nn.Module):
     """An encoder "conv and downsample" block"""
 
-    def __init__(self, conv_layers, maxpool_kwargs=None):
+    def __init__(self, conv_layers, maxpool='Maxpool3d', maxpool_kwargs={}):
         """
         A single encoder block:
-            (conv3d -> activation -> batch norm) x N -> maxpool
+            (conv -> activation -> batch norm) x N -> maxpool
 
         Args:
-            conv_layers : list of dict
-                List of Conv3d kwargs for each convolutional
+            conv_layers : list of dict, required
+                List of nn.Conv kwargs for each convolutional
                 layer in this block
-            maxpool_kwargs : dict
-                kwargs for nn.MaxPool3d. Default is no max pooling.
+            maxpool : str, default = 'Maxpool3d'
+                Maxpooling class. None for no maxpooling
+            maxpool_kwargs : dict, default = {}
+                kwargs for nn.Maxpool
         """
-        super(Encoder3d, self).__init__()
+        super(Encoder, self).__init__()
         steps = []
 
         # append convolutional steps
         for layer in conv_layers:
-            steps.append(Conv3d(**layer))
+            steps.append(getattr(nn, conv)(**layer))
 
         # append max pooling
-        if maxpool_kwargs is not None:
-            steps.append(nn.MaxPool3d(**maxpool_kwargs))
+        if maxpool is not None:
+            steps.append(getattr(nn, maxpool)(**maxpool_kwargs))
 
         self.model = nn.Sequential(*steps)
 
@@ -92,73 +106,81 @@ class Encoder3d(nn.Module):
         return self.model(X)
 
 
-class Decoder3d(nn.Module):
+class Decoder(nn.Module):
     """A decoder "conv and upsample" block"""
 
-    def __init__(self, conv_layers, up_kwargs, up_mode='upsample'):
+    def __init__(self, conv_layers, up_kwargs, conv='Conv3d', up_mode='upsample'):
         """
         A single decoder block:
             (conv -> activation -> batch norm) x N -> upsample
 
         Args:
-            conv_layers : list of dict
-                List of Conv3d kwargs for each convolutional
+            conv_layers : list of dict, required
+                List of nn.Conv kwargs for each convolutional
                 layer in this block
-            up_kwargs : dict
+            up_kwargs : dict, required
                 Upsampling keyword arguments
+            conv : str, default = 'Conv3d'
+                Convolution class, e.g. 'Conv2d' or 'Conv3d'
             up_mode : str, default = 'upsample'
                 Upsampling method
-                    'upsample' : use UpSample (nn.Upsample, nn.Conv3d)
-                    'upconv'   : use nn.ConvTranspose3d
+                    'upsample'        : use UpSample (nn.Upsample, nn.ConvNd)
+                    'ConvTranspose2d' : use nn.ConvTranspose2d
+                    'ConvTranspose3d' : use nn.ConvTranspose3d
         """
-        super(Decoder3d, self).__init__()
+        super(Decoder, self).__init__()
         steps = []
  
         # append convolutional steps
         for layer in conv_layers:
-            steps.append(Conv3d(**layer))
+            steps.append(getattr(nn, conv)(**layer))
 
         # append upsampling
         if up_mode == 'upsample':
             steps.append(UpSample(**up_kwargs))
-        elif up_mode == 'upconv':
-            steps.append(nn.ConvTranspose3d(**up_kwargs))
         else:
-            raise ValueError("did not recognize up_mode {}".format(up_mode))
+            steps.append(getattr(nn, up_mode)(**up_kwargs))
 
         self.model = nn.Sequential(*steps)
 
     def center_crop(self, X, shape):
         """
-        Center crop X if needed along last three dimensions
+        Center crop X if needed along last Nd dimensions
 
         Args:
-            X : torch.Tensor of shape (N, C, H, W, L)
-            shape : len-3 tuple of required cropped shape (H, W, L)
+            X : torch.Tensor of shape (N, C, [H], W, L)
+            shape : len-2 or len-3 tuple of required cropped shape ([H], W, L)
 
         Returns:
             Tensor, X center cropped to shape
         """
-        if X.shape[-3:] == shape:
+        Nd = len(shape)
+        if X.shape[-Nd:] == shape:
             return X
         slices = []
-        for i in range(3):
+        for i in range(Nd):
             diff = (X.shape[-i] - shape[-i]) // 2
             if diff < 0:
-                raise ValueError("Cannot center crop X of shape {} to shape {}".format(X.shape[-3:], shape))
+                raise ValueError("Cannot center crop X of shape {} to shape {}".format(X.shape[-Nd:], shape))
             slices.append(slice(diff, diff + shape[-i]))
-        return X[..., slices[2], slices[1], slices[0]]
+        if Nd == 1:
+            return X[..., slices[0]]
+        elif Nd == 2:
+            return X[..., slices[1], slices[0]]
+        elif Nd == 3:
+            return X[..., slices[2], slices[1], slices[0]]
 
     def crop_concat(self, X, connection):
         """
         Crop and concatenate skip connection to X
 
         Args:
-            X : torch.Tensor of shape (N, C, H, W, L)
-            connection : torch.Tensor of shape (Nc, Cc, Hc, Wc, Lc)
+            X : torch.Tensor of shape (N, C, [H], [W], L)
+            connection : torch.Tensor of shape (Nc, Cc, [Hc], [Wc], Lc)
                 skip connection to center crop and concatenate to X
         """
-        X = torch.cat([self.center_crop(connection, X.shape[-3:]), X], dim=1)
+        Nd = X.ndim - 2
+        X = torch.cat([self.center_crop(connection, X.shape[-Nd:]), X], dim=1)
         return X
 
     def forward(self, X, connection=None):
@@ -167,13 +189,14 @@ class Decoder3d(nn.Module):
         return self.model(X)
 
 
-class AutoEncoder3d(nn.Module):
-    """An autoencoder for 3D data"""
+class AutoEncoder(nn.Module):
+    """An autoencoder"""
 
     def __init__(self, encoder_layers, decoder_layers, final_layer,
                  connections=None, final_transforms=None):
         """
         An autoencoder
+            encoder -> decoder -> final layer
 
         Args:
             encoder_layers : list of dict
@@ -193,23 +216,23 @@ class AutoEncoder3d(nn.Module):
                 Final activation to apply to each channel of network output
                 To apply a different activation for each channel, pass as a list
         """
-        super(AutoEncoder3d, self).__init__()
+        super(AutoEncoder, self).__init__()
         self.connections = connections
 
         # setup encoder
         steps = []
         for encoder_kwargs in encoder_layers:
-            steps.append(Encoder3d(**encoder_kwargs))
+            steps.append(Encoder(**encoder_kwargs))
         self.encoder = nn.ModuleList(steps)
 
         # setup decoder
         steps = []
         for decoder_kwargs in decoder_layers:
-            steps.append(Decoder3d(**decoder_kwargs))
+            steps.append(Decoder(**decoder_kwargs))
         self.decoder = nn.ModuleList(steps)
 
         # final layer: an encoder layer with no maxpooling
-        self.final = Encoder3d(**final_layer, maxpool_kwargs=None)
+        self.final = Encoder(**final_layer, maxpool=None)
 
         # setup activations on final layer output, one for each output channel
         if final_transforms is not None:
