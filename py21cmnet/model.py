@@ -75,7 +75,7 @@ class UpSample(nn.Module):
 class Encoder(nn.Module):
     """An encoder "conv and downsample" block"""
 
-    def __init__(self, conv_layers, maxpool='Maxpool3d', maxpool_kwargs={}):
+    def __init__(self, conv_layers, maxpool='MaxPool3d', maxpool_kwargs={}):
         """
         A single encoder block:
             (conv -> activation -> batch norm) x N -> maxpool
@@ -257,7 +257,7 @@ class AutoEncoder(nn.Module):
             X = decode(X, connection)
 
         # final layer
-        out = self.final_layer(X)
+        out = self.final(X)
 
         # final transformations
         if self.final_transforms is not None:
