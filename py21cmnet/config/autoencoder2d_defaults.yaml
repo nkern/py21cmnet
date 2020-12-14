@@ -1,0 +1,32 @@
+##-- py21cmnet ancillary config --##
+# Combined with autoencoder2d.yaml
+# these are default parameters
+# for conv_layer, encode, and decode
+
+conv_layer :
+  conv : 'Conv2d'
+  conv_kwargs : 
+    kernel_size : 3
+    padding : 1
+    padding_mode : 'circular'
+  activation : 'ReLU'
+  act_kwargs : {}
+  batch_norm : 'BatchNorm2d'
+  norm_kwargs : {}
+  dropout : None
+  dropout_kwargs : {}
+
+encode : 
+  maxpool : 'MaxPool2d'
+  maxpool_kwargs :
+    kernel_size : 2
+
+decode :
+  up_mode : 'ConvTranspose2d'
+  up_kwargs :
+    kernel_size : 3
+    stride : 2
+    padding : 1
+    output_padding : 1
+
+

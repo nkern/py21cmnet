@@ -1,6 +1,7 @@
 """
-neural network models
+neural network module
 """
+
 import numpy as np
 import torch
 from torch import nn
@@ -84,10 +85,10 @@ class Encoder(nn.Module):
             conv_layers : list of dict, required
                 List of nn.Conv kwargs for each convolutional
                 layer in this block
-            maxpool : str, default = 'Maxpool3d'
+            maxpool : str, default = 'MaxPool3d'
                 Maxpooling class. None for no maxpooling
             maxpool_kwargs : dict, default = {}
-                kwargs for nn.Maxpool
+                kwargs for nn.MaxPool
         """
         super(Encoder, self).__init__()
         steps = []
@@ -146,10 +147,11 @@ class Decoder(nn.Module):
     def center_crop(self, X, shape):
         """
         Center crop X if needed along last Nd dimensions
+        [H] and [W] denote possible but not required dimensions
 
         Args:
-            X : torch.Tensor of shape (N, C, [H], W, L)
-            shape : len-2 or len-3 tuple of required cropped shape ([H], W, L)
+            X : torch.Tensor of shape (N, C, [H], [W], L)
+            shape : len-1, 2 or 3 tuple of required cropped shape ([H], [W], L)
 
         Returns:
             Tensor, X center cropped to shape
@@ -173,6 +175,7 @@ class Decoder(nn.Module):
     def crop_concat(self, X, connection):
         """
         Crop and concatenate skip connection to X
+        [H] and [W] denote possible but not required dimensions
 
         Args:
             X : torch.Tensor of shape (N, C, [H], [W], L)
@@ -195,18 +198,19 @@ class AutoEncoder(nn.Module):
     def __init__(self, encoder_layers, decoder_layers, final_layer,
                  connections=None, final_transforms=None):
         """
-        An autoencoder
+        An autoencoder with skip connections:
             encoder -> decoder -> final layer
+              |-> skip ->|
 
         Args:
             encoder_layers : list of dict
-                A list of Encoder3d kwargs for
+                A list of Encoder kwargs for
                 each encoder block in this network
             decoder_layers : list of dict
-                A list of Decoder3d kwargs for
+                A list of Decoder kwargs for
                 each decoder block in this network
             final_layer : dict
-                Encoder3d kwargs for the final convolutional
+                Encoder kwargs for the final convolutional
                 layer in the network (without maxpooling)
             connections : dict
                 A dictionary mapping the skip connection of each

@@ -1,0 +1,64 @@
+##-- py21cmnet primary onfig --##
+# A depth-2 autoencoder with no skip connections.
+# Operates on 2d data.
+# Combined with *_defaults.yaml
+
+encode1 : 
+  conv_layers :
+    - conv_kwargs : 
+        in_channels : 2
+        out_channels : 24
+    - conv_kwargs : 
+        in_channels : 24
+        out_channels : 24
+
+encode2 : 
+  conv_layers :
+    - conv_kwargs : 
+        in_channels : 24
+        out_channels : 48
+    - conv_kwargs : 
+        in_channels : 48
+        out_channels : 48
+
+decode1 : 
+  conv_layers :
+    - conv_kwargs : 
+          in_channels : 48
+          out_channels : 96
+    - conv_kwargs : 
+          in_channels : 96
+          out_channels : 96
+  up_kwargs :
+    in_channels : 96
+    out_channels : 48
+
+decode2 : 
+  conv_layers :
+    - conv_kwargs : 
+          in_channels : 48
+          out_channels : 24
+    - conv_kwargs : 
+          in_channels : 24
+          out_channels : 24
+  up_kwargs :
+    in_channels : 24
+    out_channels : 12
+
+final : 
+  conv_layers :
+    - conv_kwargs : 
+          in_channels : 12
+          out_channels : 6
+    - conv_kwargs : 
+          in_channels : 6
+          out_channels : 6
+    - conv_kwargs : 
+          in_channels : 6
+          out_channels : 1
+          kernel_size : 1
+          padding : 0
+
+connections : None
+
+final_transforms : None

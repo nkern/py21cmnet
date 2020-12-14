@@ -1,28 +1,14 @@
 """
 dataset module
 """
+
 import numpy as np
 from skimage import transform
 from torch.utils.data import Dataset, DataLoader
 
+from . import utils
 
-def load_21cmfast(fname, dtype=np.float32, N=512):
-    """load 21cmfast box(es)
-    Args:
-        fname : str or list of str
-            If list of str, prepend boxes
-        dtype : datatype
-        N : int
-            size of box length in pixels
-    """
-    if isinstance(fname, (list, tuple)):
-        box = np.empty((len(fname), N, N, N), dtype=dtype)
-        for i, fn in enumerate(fname):
-            box[i] = load_21cmfast(fn, dtype=dtype, N=N)
-    else:
-        box = np.fromfile(fname, dtype=dtype).reshape(N, N, N)
 
-    return box
 
 
 class Roll:
@@ -80,7 +66,7 @@ class BoxDataset(Dataset):
     Dataset for cosmological box output
     """
 
-    def __init__(self, Xfiles, yfiles, transform=None, readf=load_21cmfast, **kwargs):
+    def __init__(self, Xfiles, yfiles, readf, transform=None, **kwargs):
         """Cosmological box dataset
         
         Args:
@@ -91,10 +77,12 @@ class BoxDataset(Dataset):
             yfiles : list of str, list of sublist of str
                 List of filepaths to box output of target values.
                 Same rules apply as Xfiles, must match len of Xfiles
+            readf : callable, required
+                Data read function, input as element of Xfiles or yfiles.
+                If Xfiles and yfiles holds the data in-memory,
+                use utils.load_dummy as readf.
             transform : callable, list of callable
                 Box transformations
-            readf : callable
-                box read function
 
         Returns:
             ndarray (Nfiles, Nchans, box_shape)
