@@ -4,11 +4,11 @@ channels:
   - defaults
 dependencies:
   - pip
-  - astropy>=3.2.3
+  - astropy>=4.0
   - h5py
-  - numpy>=1.10
+  - numpy>=1.18
   - pytest
-  - scipy
+  - scipy>=1.4.0
   - scikit-learn
   - scikit-image
   - mpi4py
@@ -16,8 +16,7 @@ dependencies:
   - psutil
   - pytest-cov
   - coveralls
-  - pytorch
-  - torchvision
-  - ipython
+  - pytorch>=1.7.0
+  - torchvision>=0.8.1
   - pip:
     - git+https://github.com/nkern/simpleQE
