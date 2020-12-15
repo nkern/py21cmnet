@@ -1,0 +1,22 @@
+name: py21cmnet
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - pip
+  - astropy>=3.2.3
+  - h5py
+  - numpy>=1.10
+  - pytest
+  - scipy
+  - scikit-learn
+  - scikit-image
+  - mpi4py
+  - pyyaml
+  - psutil
+  - pytest-cov
+  - coveralls
+  - torch
+  - torchvision
+  - pip:
+    - git+https://github.com/nkern/simpleQE
