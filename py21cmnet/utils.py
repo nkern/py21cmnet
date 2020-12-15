@@ -5,7 +5,6 @@ import numpy as np
 from copy import deepcopy
 import h5py
 import yaml
-from simpleqe.utils import Cosmology
 import os
 import torch
 import time

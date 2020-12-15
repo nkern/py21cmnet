@@ -29,12 +29,7 @@ Major `pip` or `conda` installable dependencies include:
 * scikit-learn
 * scikit-image
 * pyyaml
-* astropy>=4.0.0
 * h5py
-
-Other dependencies should be built from source in a similar manner as `py21cmnet`:
-
-* [simpleQE](https://github.com/nkern/simpleQE)
 
 ## Getting Started
 
