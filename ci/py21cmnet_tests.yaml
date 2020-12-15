@@ -18,5 +18,6 @@ dependencies:
   - coveralls
   - pytorch
   - torchvision
+  - ipython
   - pip:
     - git+https://github.com/nkern/simpleQE

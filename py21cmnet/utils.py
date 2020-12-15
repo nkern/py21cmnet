@@ -10,7 +10,6 @@ from simpleqe.utils import Cosmology
 import os
 import torch
 import time
-from IPython.display import clear_output
 
 
 def train(model, train_dloader, loss_fn, optim, optim_kwargs={},
@@ -125,7 +124,6 @@ def train(model, train_dloader, loss_fn, optim, optim_kwargs={},
             epoch_acc = running_acc / len(dataloader.dataset)
 
             if verbose:
-                clear_output(wait=True)
                 print('{} Loss: {:.4f} Acc: {}'.format(phase, epoch_loss, epoch_acc))
                 print('-' * 10)
 
