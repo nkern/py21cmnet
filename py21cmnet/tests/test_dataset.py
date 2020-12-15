@@ -34,6 +34,26 @@ def test_transforms():
     assert (DS(db) == db[::2, ::2, ::2]).all()
     assert DS(box).shape == box.shape[:1] + tuple(np.array(box.shape[1:])/2)
 
+    # transpose
+    db_mod = db[:, ::2, ::4]
+    DS = dataset.Transpose(ndim=3)
+    # test fed axes
+    db_tran = DS(db_mod, axes=(1, 2, 0))
+    assert db_tran.shape == (64, 32, 128)
+    assert np.isclose(db_tran, np.transpose(db_mod, (1, 2, 0))).all()
+    # test random axes
+    np.random.seed(1)
+    db_tran = DS(db_mod)
+    assert db_tran.shape == (128, 32, 64)
+    # test box
+    box_mod = box[:, :, ::2, ::4]
+    box_tran = DS(box_mod, axes=(1, 2, 0))
+    assert box_tran.shape == (2, 64, 32, 128)
+    # test list
+    box_tran = DS([box_mod[0], box_mod[1]], axes=(1, 2, 0))
+    for i in range(2):
+        assert box_tran[i].shape == (64, 32, 128)
+
 
 def test_dataset():
     fname = os.path.join(DATA_PATH, "train_21cmfast_basic.h5")

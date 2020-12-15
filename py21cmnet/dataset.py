@@ -58,6 +58,40 @@ class DownSample:
             return box[..., ::self.thin, ::self.thin, ::self.thin]
 
 
+class Transpose:
+    """Transpose a box along last ndim axes"""
+    def __init__(self, axes=None, ndim=3):
+        """transpose a 2D or 3D dataset
+        Args:
+            axes : 0th ordered, ndim-len tuple
+                This is the new axes ordering along last ndim axes.
+                Default is random ordering.
+                E.g. no tranpose is axes=(0, 1, 2) for a 3d box
+            ndim : int
+                Dimensions of box (e.g. 2d or 3d)
+        """
+        self.ndim = ndim
+        self.axes = axes
+
+    def __call__(self, box, axes=None):
+        if isinstance(box, (list, tuple)):
+            full_dim = box[0].ndim
+        else:
+            full_dim = box.ndim
+        dim_diff = full_dim - self.ndim
+        # compute axes if not fed
+        if axes is None:
+            if self.axes is None:
+                axes = tuple(np.random.choice(range(self.ndim), self.ndim, replace=False))
+            else:
+                axes = self.axes
+        if isinstance(box, (list, tuple)):
+            return [self.__call__(b, axes=axes) for b in box]
+        # modify axes for full_dim
+        axes = tuple(range(dim_diff)) + tuple(np.array(axes) + dim_diff)
+        return np.transpose(box, axes)
+
+
 class BoxDataset(Dataset):
     """
     Dataset for cosmological box output
