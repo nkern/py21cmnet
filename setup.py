@@ -14,7 +14,7 @@ setup(
     name            = 'py21cmnet',
     version         = version,
     license         = 'MIT',
-    description     = 'U-Net for 21 cm fields',
+    description     = 'Deep neural networks for 21 cm fields',
     author          = 'Nicholas Kern',
     url             = "http://github.com/nkern/py21cmnet",
     include_package_data = True,

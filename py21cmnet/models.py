@@ -5,6 +5,7 @@ neural network module
 import numpy as np
 import torch
 from torch import nn
+import warnings
 
 
 class ConvNd(nn.Module):
@@ -76,7 +77,7 @@ class UpSample(nn.Module):
 class Encoder(nn.Module):
     """An encoder "conv and downsample" block"""
 
-    def __init__(self, conv_layers, maxpool='MaxPool3d', maxpool_kwargs={}):
+    def __init__(self, conv_layers, maxpool='MaxPool3d', maxpool_kwargs={}, device=None):
         """
         A single encoder block:
             (conv -> activation -> batch norm) x N -> maxpool
@@ -89,6 +90,8 @@ class Encoder(nn.Module):
                 Maxpooling class. None for no maxpooling
             maxpool_kwargs : dict, default = {}
                 kwargs for nn.MaxPool
+            device : str, default=None
+                device of this layer
         """
         super(Encoder, self).__init__()
         steps = []
@@ -103,14 +106,32 @@ class Encoder(nn.Module):
 
         self.model = nn.Sequential(*steps)
 
+        # send model to device if requested
+        self.device = device
+        if self.device is not None:
+            self.to(device)
+
+    def pass_to_device(self, X):
+        """
+        Pass X to device if necessary
+
+        Args:
+            X : torch.tensor
+        """
+        # send X to device if necessary
+        if self.device is not None:
+            if self.device != X.device:
+                return X.to(self.device)
+        return X
+
     def forward(self, X):
-        return self.model(X)
+        return self.model(self.pass_to_device(X))
 
 
 class Decoder(nn.Module):
     """A decoder "conv and upsample" block"""
 
-    def __init__(self, conv_layers, up_kwargs, conv='Conv3d', up_mode='upsample'):
+    def __init__(self, conv_layers, up_kwargs, conv='Conv3d', up_mode='upsample', device=None):
         """
         A single decoder block:
             (conv -> activation -> batch norm) x N -> upsample
@@ -128,6 +149,8 @@ class Decoder(nn.Module):
                     'upsample'        : use UpSample (nn.Upsample, nn.ConvNd)
                     'ConvTranspose2d' : use nn.ConvTranspose2d
                     'ConvTranspose3d' : use nn.ConvTranspose3d
+            device : str, default=None
+                device of this layer
         """
         super(Decoder, self).__init__()
         steps = []
@@ -143,6 +166,25 @@ class Decoder(nn.Module):
             steps.append(getattr(nn, up_mode)(**up_kwargs))
 
         self.model = nn.Sequential(*steps)
+
+        # send model to device if requested
+        self.device = device
+        if self.device is not None:
+            self.to(device)
+
+    def pass_to_device(self, X):
+        """
+        Pass X to device if necessary
+
+        Args:
+            X : torch.tensor
+        """
+        # send X to device if necessary
+        if self.device is not None:
+            if self.device != X.device:
+                return X.to(self.device)
+        return X
+
 
     def center_crop(self, X, shape):
         """
@@ -187,7 +229,9 @@ class Decoder(nn.Module):
         return X
 
     def forward(self, X, connection=None):
+        X = self.pass_to_device(X)
         if connection is not None:
+            connection = self.pass_to_device(connection)
             X = self.crop_concat(X, connection)
         return self.model(X)
 

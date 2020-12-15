@@ -9,8 +9,6 @@ from torch.utils.data import Dataset, DataLoader
 from . import utils
 
 
-
-
 class Roll:
     """roll a box along last ndim axes"""
     def __init__(self, shift=None, ndim=3):
@@ -70,11 +68,11 @@ class BoxDataset(Dataset):
         """Cosmological box dataset
         
         Args:
-            Xfiles : list of str, list of sublist of str
+            Xfiles : list of str, list of sublist of str, required
                 List of filepaths to box output of feature values
                 If fed as a list of sublist of str, each element
                 in a sublist is a unique channel.
-            yfiles : list of str, list of sublist of str
+            yfiles : list of str, list of sublist of str, requjired
                 List of filepaths to box output of target values.
                 Same rules apply as Xfiles, must match len of Xfiles
             readf : callable, required

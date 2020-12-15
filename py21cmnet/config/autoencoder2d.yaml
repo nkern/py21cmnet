@@ -1,7 +1,7 @@
-##-- py21cmnet primary onfig --##
+##-- py21cmnet primary config --##
 # A depth-2 autoencoder with no skip connections.
-# Operates on 2d data.
-# Combined with *_defaults.yaml
+# Operates on 2d data, combined with *_defaults.yaml
+# See py21cmnet.utils.load_autoencoder_params()
 
 encode1 : 
   conv_layers :
