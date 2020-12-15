@@ -194,7 +194,7 @@ def _split_hdf5(fname):
     return split
 
 
-def write_hdf5(data, fname, overwrite=False, params=None, dtype=None, **kwargs):
+def write_hdf5(data, fname, overwrite=False, params=None, dtype=None, verbose=True, **kwargs):
     """
     Write hdf5 data
 
