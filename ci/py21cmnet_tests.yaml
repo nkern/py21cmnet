@@ -16,7 +16,7 @@ dependencies:
   - psutil
   - pytest-cov
   - coveralls
-  - pytorch>=1.7.0
-  - torchvision>=0.8.1
+  - pytorch::pytorch>=1.7.0
+  - pytorch::torchvision>=0.8.0
   - pip:
     - git+https://github.com/nkern/simpleQE
