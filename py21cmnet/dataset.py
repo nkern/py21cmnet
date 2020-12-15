@@ -58,7 +58,6 @@ class DownSample:
             return box[..., ::self.thin, ::self.thin, ::self.thin]
 
 
-
 class BoxDataset(Dataset):
     """
     Dataset for cosmological box output
@@ -88,7 +87,7 @@ class BoxDataset(Dataset):
         self.Xfiles = Xfiles
         self.yfiles = yfiles
         self.transform = transform
-        self.readf = load_21cmfast
+        self.readf = readf
         self.kwargs = kwargs
         assert len(self.Xfiles) == len(self.yfiles)
 

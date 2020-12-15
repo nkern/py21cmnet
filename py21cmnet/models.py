@@ -67,6 +67,7 @@ class UpSample(nn.Module):
             conv : str, default = 'Conv3d'
                 Convolution class, e.g. 'Conv2d' or 'Conv3d'
         """
+        super(UpSample, self).__init__()
         self.model = nn.Sequential(nn.Upsample(**upsample_kwargs),
                                    getattr(nn, conv)(**conv_kwargs))
 
@@ -185,7 +186,6 @@ class Decoder(nn.Module):
                 return X.to(self.device)
         return X
 
-
     def center_crop(self, X, shape):
         """
         Center crop X if needed along last Nd dimensions
@@ -202,7 +202,7 @@ class Decoder(nn.Module):
         if X.shape[-Nd:] == shape:
             return X
         slices = []
-        for i in range(Nd):
+        for i in range(1, Nd + 1):
             diff = (X.shape[-i] - shape[-i]) // 2
             if diff < 0:
                 raise ValueError("Cannot center crop X of shape {} to shape {}".format(X.shape[-Nd:], shape))
@@ -229,11 +229,9 @@ class Decoder(nn.Module):
         return X
 
     def forward(self, X, connection=None):
-        X = self.pass_to_device(X)
         if connection is not None:
-            connection = self.pass_to_device(connection)
             X = self.crop_concat(X, connection)
-        return self.model(X)
+        return self.model(self.pass_to_device(X))
 
 
 class AutoEncoder(nn.Module):
@@ -286,7 +284,7 @@ class AutoEncoder(nn.Module):
         if final_transforms is not None:
             if not isinstance(final_transforms, (list, tuple)):
                 final_transforms = [final_transforms for i in range(self.final.out_channels)]
-            assert len(final_transforms) == self.final.out_channels
+            assert len(final_transforms) == self.final.model[-1].model[0].out_channels 
         self.final_transforms = final_transforms
 
     def forward(self, X):
@@ -298,7 +296,7 @@ class AutoEncoder(nn.Module):
 
         # pass through decoder
         for i, decode in enumerate(self.decoder):
-            if self.connections is not None and self.connections[i] is not None:
+            if self.connections is not None and i in self.connections and self.connections[i] is not None:
                 connection = outputs[self.connections[i]]
             else:
                 connection = None
@@ -310,6 +308,6 @@ class AutoEncoder(nn.Module):
         # final transformations
         if self.final_transforms is not None:
             for i, ft in enumerate(self.final_transforms):
-                out[:, i] = ft(out[:, i])
+                out[:, i] = getattr(nn, ft)()(out[:, i].clone())
 
         return out

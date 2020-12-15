@@ -14,7 +14,7 @@ from IPython.display import clear_output
 
 
 def train(model, train_dloader, loss_fn, optim, optim_kwargs={},
-          acc_fn=None, Nepochs=1, valid_dloader=None, cuda=False):
+          acc_fn=None, Nepochs=1, valid_dloader=None, cuda=False, verbose=True):
     """
     Model training function
 
@@ -57,8 +57,9 @@ def train(model, train_dloader, loss_fn, optim, optim_kwargs={},
 
     # iterate over epochs
     for epoch in range(Nepochs):
-        print('Epoch {}/{}'.format(epoch, epochs - 1))
-        print('-' * 10)
+        if verbose:
+            print('Epoch {}/{}'.format(epoch, Nepochs))
+            print('-' * 10)
 
         # training and validation
         for phase in ['train', 'valid']:
@@ -75,6 +76,7 @@ def train(model, train_dloader, loss_fn, optim, optim_kwargs={},
                 continue
 
             running_loss = 0.0
+            running_acc = 0.0
             step = 1  # this should start at 1, not 0
             optimizer.zero_grad()
 
@@ -111,7 +113,7 @@ def train(model, train_dloader, loss_fn, optim, optim_kwargs={},
                 running_acc  += acc * X.shape[0]
                 running_loss += loss * X.shape[0]
 
-                if i % 10 == 0:
+                if i % 10 == 0 and verbose:
                     print('Current step: {}  Loss: {}'.format(i, loss))
                     if cuda:
                         print("AllocMem (Mb) {}".format(torch.cuda.memory_allocated()/1024/1024))
@@ -122,11 +124,10 @@ def train(model, train_dloader, loss_fn, optim, optim_kwargs={},
             epoch_loss = running_loss / len(dataloader.dataset)
             epoch_acc = running_acc / len(dataloader.dataset)
 
-            clear_output(wait=True)
-            print('Epoch {}/{}'.format(epoch, Nepochs))
-            print('-' * 10)
-            print('{} Loss: {:.4f} Acc: {}'.format(phase, epoch_loss, epoch_acc))
-            print('-' * 10)
+            if verbose:
+                clear_output(wait=True)
+                print('{} Loss: {:.4f} Acc: {}'.format(phase, epoch_loss, epoch_acc))
+                print('-' * 10)
 
             if phase == 'train':
                 train_loss.append(epoch_loss)
@@ -256,7 +257,8 @@ def write_hdf5(data, fname, overwrite=False, params=None, dtype=None, verbose=Tr
 
 def _get_dset_meta(fname):
     """return dataset shape and dtype"""
-    fname = _split_hdf5(fname)
+    if isinstance(fname, str):
+        fname = _split_hdf5(fname)
     with h5py.File(fname[0], 'r') as f:
         return f[fname[1]].shape, f[fname[1]].dtype
 
@@ -276,10 +278,8 @@ def load_hdf5(fname, dtype=None):
             Datatype of data to load, default is ndarray dtype
 
     Returns:
-        ndarray
-            dataset
+        dataset
     """
-    fname = _split_hdf5(fname)
     if isinstance(fname, (list, tuple)):
         shape, _dtype = _get_dset_meta(fname[0])
         if dtype is None:
@@ -288,8 +288,13 @@ def load_hdf5(fname, dtype=None):
         for i, fn in enumerate(fname):
             box[i] = load_hdf5(fn, dtype=dtype)
     else:
-        with h5py.File(fname, 'r') as f:
-            box = f[fname[1]][:]
+        fname = _split_hdf5(fname)
+        if fname[1] is None:
+            raise ValueError("Must specify dataset of {}".format(fname[0]))
+        with h5py.File(fname[0], 'r') as f:
+            if dtype is None:
+                dtype = f[fname[1]].dtype
+            box = np.asarray(f[fname[1]][:], dtype=dtype)
 
     return box
 
