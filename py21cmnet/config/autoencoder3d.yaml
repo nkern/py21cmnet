@@ -1,6 +1,6 @@
 ##-- py21cmnet primary config --##
 # A depth-2 autoencoder with a skip connection.
-# Operates on 2d data, combined with *_defaults.yaml
+# Operates on 3d data, combined with *_defaults.yaml
 # See py21cmnet.utils.load_autoencoder_params()
 
 encode0 : 
