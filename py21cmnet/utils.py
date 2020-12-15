@@ -239,6 +239,11 @@ def write_hdf5(data, fname, overwrite=False, params=None, dtype=None, verbose=Tr
         # create dataset
         if dtype is None:
             dtype = data.dtype
+        if dset_name in dsets and not overwrite:
+            if verbose: print("{} exists, overwrite is False".format(fname))
+            return None
+        elif dset_name in dsets and overwrite:
+            del f[dset_name]
         if verbose: print("writing {}/{}".format(fname[0], dset_name))
         f.create_dataset(dset_name, data=data, dtype=dtype, **kwargs)
 
