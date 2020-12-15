@@ -257,7 +257,7 @@ def write_hdf5(data, fname, overwrite=False, params=None, dtype=None, verbose=Tr
 def _get_dset_meta(fname):
     """return dataset shape and dtype"""
     fname = _split_hdf5(fname)
-    with h5py.File(fname[0], 'r'):
+    with h5py.File(fname[0], 'r') as f:
         return f[fname[1]].shape, f[fname[1]].dtype
 
 

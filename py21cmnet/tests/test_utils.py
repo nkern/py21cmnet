@@ -8,6 +8,7 @@ import yaml
 
 from py21cmnet import utils, models
 from py21cmnet.config import CONFIG_PATH
+from py21cmnet.data import DATA_PATH
 
 
 def test_load_paramfile():
@@ -51,3 +52,27 @@ def test_load_paramfile():
     X = torch.randn((2, 2, 64, 64))
     out = model(X)
     assert out.shape == (2, 1, 64, 64)
+
+
+def test_load_21cmfast():
+    a = np.random.randn(1000).astype(np.float).reshape(10, 10, 10)
+    fname = os.path.join(DATA_PATH, "_xyz_testfile")
+    a.tofile(fname)
+
+    box = utils.load_21cmfast(fname, dtype=np.float, N=10)
+    assert np.isclose(a, box).all()
+
+    box = utils.load_21cmfast([fname, fname], dtype=np.float, N=10)
+    assert np.isclose(a, np.array([box, box])).all()
+
+
+    os.remove(fname)
+
+
+
+
+
+
+
+
+
