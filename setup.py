@@ -10,6 +10,20 @@ with open(init_file, 'r') as f:
         if "__version__" in l:
             version = ast.literal_eval(l.split('=')[1].strip())
 
+def package_files(package_dir, subdirectory):
+    # walk the input package_dir/subdirectory
+    # return a package_data list
+    paths = []
+    directory = os.path.join(package_dir, subdirectory)
+    for (path, directories, filenames) in os.walk(directory):
+        for filename in filenames:
+            path = path.replace(package_dir + '/', '')
+            paths.append(os.path.join(path, filename))
+    return paths
+
+
+data_files = package_files('py21cmnet', 'data') + package_files('py21cmnet', 'config')
+
 setup(
     name            = 'py21cmnet',
     version         = version,
@@ -17,6 +31,9 @@ setup(
     description     = 'Deep neural networks for 21 cm fields',
     author          = 'Nicholas Kern',
     url             = "http://github.com/nkern/py21cmnet",
+    package_data    = {'py21cmnet': data_files},
     include_package_data = True,
-    packages        = ['py21cmnet']
+    packages        = ['py21cmnet'],
+    package_dir     = {'hera_cal': 'hera_cal'},
+    zip_safe        = False
     )
