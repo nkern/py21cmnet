@@ -5,7 +5,6 @@ import numpy as np
 from copy import deepcopy
 import h5py
 import yaml
-from astropy import constants as con
 from simpleqe.utils import Cosmology
 import os
 import torch
@@ -133,7 +132,8 @@ def train(model, train_dloader, loss_fn, optim, optim_kwargs={},
                 valid_loss.append(epoch_loss)
 
     time_elapsed = time.time() - start
-    print('Training complete in {:.0f}m {:.0f}s'.format(time_elapsed // 60, time_elapsed % 60))    
+    if verbose:
+        print('Training complete in {:.0f}m {:.0f}s'.format(time_elapsed // 60, time_elapsed % 60))    
     
     info = dict(train_loss=train_loss, valid_loss=valid_loss, train_acc=train_acc, valid_acc=valid_acc,
                 optimizer=optimizer)
@@ -414,4 +414,30 @@ def load_autoencoder_params(config, defaults=None):
     return network
 
 
+def read_test_data(fname, ndim=3):
+    """read test data"""
+    X = load_hdf5([fname+'/deltax', fname+'/Gamma'], dtype=np.float32)
+    y = load_hdf5([fname+'/x_HI', fname+'/Ts'], dtype=np.float32)
 
+    if ndim == 3:
+        # cut out 8 quadrants of 3d data
+        N = X.shape[-1] // 2
+        _X, _y = [], []
+        for i in range(2):
+            for j in range(2):
+                for k in range(2):
+                    _X.append(X[:, i*N:(i+1)*N, j*N:(j+1)*N, k*N:(k+1)*N])
+                    _y.append(y[:, i*N:(i+1)*N, j*N:(j+1)*N, k*N:(k+1)*N])
+        X = np.array(_X)
+        y = np.array(_y)
+
+    elif ndim == 2:
+        # cut out each slice
+        _X, _y = [], []
+        for i in range(X.shape[-1]):
+            _X.append(X[..., i])
+            _y.append(y[..., i])
+        X = np.array(_X)
+        y = np.array(_y)
+
+    return torch.as_tensor(X), torch.as_tensor(y)
