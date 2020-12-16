@@ -7,6 +7,8 @@ import torch
 from torch import nn
 import warnings
 
+from . import dataset
+
 
 class ConvNd(nn.Module):
     """A convolution, activation and normalization block"""
@@ -282,9 +284,22 @@ class AutoEncoder(nn.Module):
 
         # setup activations on final layer output, one for each output channel
         if final_transforms is not None:
+            # sort as Nout_chan activations
+            Nout_chan = self.final.model[-1].model[0].out_channels
             if not isinstance(final_transforms, (list, tuple)):
-                final_transforms = [final_transforms for i in range(self.final.out_channels)]
-            assert len(final_transforms) == self.final.model[-1].model[0].out_channels 
+                final_transforms = [final_transforms for i in range(Nout_chan)]
+            assert len(final_transforms) == Nout_chan
+            # turn activations into callables
+            for i, ft in enumerate(final_transforms):
+                if isinstance(ft, str):
+                    # search for ft
+                    if hasattr(nn, ft):
+                        final_transforms[i] = getattr(nn, ft)()
+                    elif hasattr(dataset, ft):
+                        final_transforms[i] = getattr(dataset, ft)()
+                    else:
+                        raise ValueError("didn't recognize {}".format(ft))
+
         self.final_transforms = final_transforms
 
     def forward(self, X):
@@ -309,7 +324,7 @@ class AutoEncoder(nn.Module):
         if self.final_transforms is not None:
             for i, ft in enumerate(self.final_transforms):
                 if ft is not None:
-                    out[:, i] = getattr(nn, ft)()(out[:, i].clone())
+                    out[:, i] = ft(out[:, i].clone())
 
         return out
 
