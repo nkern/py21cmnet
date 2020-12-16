@@ -7,21 +7,25 @@ import torch
 from torch import nn
 
 
-class ModifiedTanh(nn.Module):
-    r"""Modified Tanh - i.e. a sharper sigmoid
+class ModifiedSigmoid(nn.Module):
+    r"""Modified Sigmoid - i.e. a sharper sigmoid
 
-    :math:`\text{MTanh}(x) = \text{Tanh}(x) / 2 + 0.5`
+    :math:`\text{MSigmoid}(x) = 1 / (1 + \exp(-x * c))`
+
+    Args:
+        c : float, coefficient of input in exponential
 
     Shape:
         - Input: :math:`(N, *)` where `*` means, any number of additional
           dimensions
         - Output: :math:`(N, *)`, same shape as the input
     """
-    def __init__(self):
-        super(ModifiedTanh, self).__init__()
+    def __init__(self, c=1):
+        super(ModifiedSigmoid, self).__init__()
+        self.c = c
 
     def forward(self, input):
-        return torch.tanh(input) / 2 + 0.5
+        return 1 / (1 + torch.exp(-input * self.c))
 
 
 class ModifiedHardtanh(nn.Module):
