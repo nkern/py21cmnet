@@ -308,7 +308,8 @@ class AutoEncoder(nn.Module):
         # final transformations
         if self.final_transforms is not None:
             for i, ft in enumerate(self.final_transforms):
-                out[:, i] = getattr(nn, ft)()(out[:, i].clone())
+                if ft is not None:
+                    out[:, i] = getattr(nn, ft)()(out[:, i].clone())
 
         return out
 
@@ -318,20 +319,16 @@ class ModifiedTanh(nn.Module):
 
     :math:`\text{MTanh}(x) = \text{Tanh}(x) / 2 + 0.5`
 
-    Args:
-        inplace: can optionally do the operation in-place. Default: ``False``
-
     Shape:
         - Input: :math:`(N, *)` where `*` means, any number of additional
           dimensions
         - Output: :math:`(N, *)`, same shape as the input
     """
-    def __init__(self, inplace=False):
+    def __init__(self):
         super(ModifiedTanh, self).__init__()
-        self.inplace = inplace
 
     def forward(self, input):
-        return nn.functional.tanh(input, inplace=self.inplace) / 2 + 0.5
+        return torch.tanh(input) / 2 + 0.5
 
 
 class ModifiedHardtanh(nn.Module):
@@ -339,17 +336,13 @@ class ModifiedHardtanh(nn.Module):
 
     :math:`\text{MHardtanh}(x) = \text{Hardtanh}(x) / 2 + 0.5`
 
-    Args:
-        inplace: can optionally do the operation in-place. Default: ``False``
-
     Shape:
         - Input: :math:`(N, *)` where `*` means, any number of additional
           dimensions
         - Output: :math:`(N, *)`, same shape as the input
     """
-    def __init__(self, inplace=False):
+    def __init__(self):
         super(ModifiedHardtanh, self).__init__()
-        self.inplace = inplace
 
     def forward(self, input):
-        return nn.functional.hardtanh(input, inplace=self.inplace) / 2 + 0.5
+        return nn.functional.hardtanh(input) / 2 + 0.5

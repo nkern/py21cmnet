@@ -101,4 +101,15 @@ def test_autoencoder():
             # pred = model(X)
             # import matplotlib.pyplot as plt;
             # plt.plot(info['train_loss'])
-            # fig,axes=plt.subplots(1,2,figsize=(10,5));axes[0].imshow(y[0,0],aspect='auto');axes[1].imshow(pred[0,0].detach().numpy(),aspect='auto')
+            # fig,axes=plt.subplots(1,2,figsize=(10,5));axes[0].imshow(y[0,0],aspect='auto');
+            # axes[1].imshow(pred[0,0].detach().numpy(),aspect='auto')
+
+
+def test_activations():
+    x = np.linspace(-10, 10, 100)
+    mt = models.ModifiedTanh()(torch.as_tensor(x)).detach().numpy()
+    mht = models.ModifiedHardtanh()(torch.as_tensor(x)).detach().numpy()
+    assert np.isclose(mt.min(), 0)
+    assert np.isclose(mt.max(), 1)
+    assert np.isclose(mht.min(), 0)
+    assert np.isclose(mht.max(), 1)
