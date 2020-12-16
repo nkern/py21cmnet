@@ -23,7 +23,7 @@ def train(model, train_dloader, loss_fn, optim, optim_kwargs={},
             A DataLoader wrapped around a Dataset object, which returns X, y
             where X is the mini-batch feature tensor, and y is the labels.
         loss_fn : callable
-            Loss function. Should have a 'mean' reduction.
+            Loss function. Should return a torch.nn.modules.loss._Loss object
         optim : callable
             Optimizer function
         optim_kwargs : dict, default = {}

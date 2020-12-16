@@ -2,7 +2,7 @@
 ![Run Tests](https://github.com/nkern/py21cmnet/workflows/Run%20Tests/badge.svg)
 [![codecov](https://codecov.io/gh/nkern/py21cmnet/branch/main/graph/badge.svg?token=3Q1IZUGZ5W)](https://codecov.io/gh/nkern/py21cmnet)
 
-A deep convolutional autoencoder network for 21 cm fields, built on pytorch.
+Deep convolutional neural network autoencoders for 21 cm fields, built on pytorch.
 
 ## Installation
 
@@ -33,7 +33,7 @@ Major `pip` or `conda` installable dependencies include:
 
 ## Getting Started
 
-To build an auto-encoder, specify the network parameters using a YAML configuration file
+To build an autoencoder, specify the network parameters using a YAML configuration file
 following the examples in `py21cmnet/config`.
 
 ```python
@@ -52,14 +52,12 @@ model = models.AutoEncoder(**params)
 fname = os.path.join(DATA_PATH, "train_21cmfast_basic.h5")
 X, y = utils.read_test_data(fname, ndim=2)
 
-# evaluate the data
+# take a forward pass through the model
 out = model(X)
 
-# train
+# train the model
 ds = dataset.BoxDataset(X, y, utils.load_dummy, transform=dataset.Roll(ndim=2))
 dl = torch.utils.data.DataLoader(ds)
 info = utils.train(model, dl, torch.nn.MSELoss(reduction='mean'), torch.optim.Adam,
                    optim_kwargs=dict(lr=0.1), Nepochs=3)
 ```
-
-
