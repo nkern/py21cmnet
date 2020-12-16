@@ -318,17 +318,27 @@ def _update_yaml(d):
             d[k] = None
 
 
-def _handle_activation(activation, **kwargs):
+def parse_activation(activation, **kwargs):
     """parse an activation input
-    
-    E.g.
-    _handle_activation("ReLU", **kwargs)
-    _handle_activation(torch.nn.ReLU, **kwargs)
-    _handle_activation({"ReLU": kwargs})
-    _handle_activation([{"ReLU": kwargs}, {"Sigmoid": kwargs}])
+
+    Args:
+        activation : callable, str, dict, or list
+            Activation to evaluate. This can be
+            a class (e.g. torch.nn.ReLU), a string
+            of a class in torch.nn or py21cmnet.functional
+            or a dict where the key is the class and the
+            value are its kwargs
+        kwargs : dict
+            keyword arguments when instantiating activation
+
+    Notes:
+        parse_activation("ReLU", **kwargs)
+        parse_activation(torch.nn.ReLU, **kwargs)
+        parse_activation({"ReLU": kwargs})
+        parse_activation([{"ReLU": kwargs}, {"Sigmoid": kwargs}])
     """
     if isinstance(activation, (list, tuple)):
-        return [_handle_activation(act) for act in activation]
+        return [parse_activation(act) for act in activation]
     if activation is None:
         return activation
     if inspect.isclass(activation):
@@ -346,7 +356,7 @@ def _handle_activation(activation, **kwargs):
     elif isinstance(activation, dict):
         # interpret as key, **value
         key = list(activation.keys())[0]
-        return _handle_activation(key, **activation[key])
+        return parse_activation(key, **activation[key])
 
     # if none of these (e.g. passed a class object), then return
     return activation
@@ -444,7 +454,7 @@ def load_autoencoder_params(config, defaults=None):
             final_layer['conv_layers'][i] = conv_layer
 
     # handle final transforms
-    p['final_transforms'] = _handle_activation(p['final_transforms'])
+    p['final_transforms'] = parse_activation(p['final_transforms'])
 
     # construct AutoEncoder network dictionary
     network = dict(encoder_layers=encoder_layers, decoder_layers=decoder_layers,

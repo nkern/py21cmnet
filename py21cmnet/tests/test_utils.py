@@ -57,20 +57,20 @@ def test_load_paramfile():
         assert out.shape == (2, 2) + tuple([64] * ndim)
 
 
-def test_handle_activation():
-    act = utils._handle_activation(None)
+def test_parse_activation():
+    act = utils.parse_activation(None)
     assert act is None
-    act = utils._handle_activation(torch.nn.ReLU)
+    act = utils.parse_activation(torch.nn.ReLU)
     assert isinstance(act, torch.nn.ReLU)
-    act = utils._handle_activation("ReLU")
+    act = utils.parse_activation("ReLU")
     assert isinstance(act, torch.nn.ReLU)
-    act = utils._handle_activation("ModifiedSigmoid")
+    act = utils.parse_activation("ModifiedSigmoid")
     assert isinstance(act, functional.ModifiedSigmoid)
-    pytest.raises(ValueError, utils._handle_activation, "foo")
-    act = utils._handle_activation({"ModifiedSigmoid": {"c":2}})
+    pytest.raises(ValueError, utils.parse_activation, "foo")
+    act = utils.parse_activation({"ModifiedSigmoid": {"c":2}})
     assert isinstance(act, functional.ModifiedSigmoid)
     assert act.c == 2
-    act = utils._handle_activation([{"ModifiedSigmoid": {"c":2}}, "ReLU"])
+    act = utils.parse_activation([{"ModifiedSigmoid": {"c":2}}, "ReLU"])
     assert isinstance(act[0], functional.ModifiedSigmoid)
     assert isinstance(act[1], torch.nn.ReLU)
     
