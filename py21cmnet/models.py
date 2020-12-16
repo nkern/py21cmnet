@@ -260,9 +260,9 @@ class AutoEncoder(nn.Module):
                 A dictionary mapping the skip connection of each
                 layer index in decoder_layers to a layer index in encoder_layers.
                 E.g. {0: 2, 1: 1, 2: None}
-            final_transforms : callable, list of callable
-                Final activation to apply to each channel of network output
-                To apply a different activation for each channel, pass as a list
+            final_transforms : callable or list of callable
+                Final activation to apply to each channel of network output.
+                To apply a different activation for each channel, pass as a list.
         """
         super(AutoEncoder, self).__init__()
         self.connections = connections
@@ -289,16 +289,6 @@ class AutoEncoder(nn.Module):
             if not isinstance(final_transforms, (list, tuple)):
                 final_transforms = [final_transforms for i in range(Nout_chan)]
             assert len(final_transforms) == Nout_chan
-            # turn activations into callables
-            for i, ft in enumerate(final_transforms):
-                if isinstance(ft, str):
-                    # search for ft
-                    if hasattr(nn, ft):
-                        final_transforms[i] = getattr(nn, ft)()
-                    elif hasattr(functional, ft):
-                        final_transforms[i] = getattr(functional, ft)()
-                    else:
-                        raise ValueError("didn't recognize {}".format(ft))
 
         self.final_transforms = final_transforms
 

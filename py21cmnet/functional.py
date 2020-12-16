@@ -27,6 +27,9 @@ class ModifiedSigmoid(nn.Module):
     def forward(self, input):
         return 1 / (1 + torch.exp(-input * self.c))
 
+    def extra_repr(self):
+        return 'c={}'.format(self.c)
+
 
 class ModifiedHardtanh(nn.Module):
     r"""Modified Hardtanh - i.e. a sharper Hard sigmoid
@@ -43,3 +46,4 @@ class ModifiedHardtanh(nn.Module):
 
     def forward(self, input):
         return nn.functional.hardtanh(input) / 2 + 0.5
+

@@ -8,6 +8,9 @@ import yaml
 import os
 import torch
 import time
+import inspect
+
+from . import functional
 
 
 def train(model, train_dloader, loss_fn, optim, optim_kwargs={},
@@ -315,6 +318,40 @@ def _update_yaml(d):
             d[k] = None
 
 
+def _handle_activation(activation, **kwargs):
+    """parse an activation input
+    
+    E.g.
+    _handle_activation("ReLU", **kwargs)
+    _handle_activation(torch.nn.ReLU, **kwargs)
+    _handle_activation({"ReLU": kwargs})
+    _handle_activation([{"ReLU": kwargs}, {"Sigmoid": kwargs}])
+    """
+    if isinstance(activation, (list, tuple)):
+        return [_handle_activation(act) for act in activation]
+    if activation is None:
+        return activation
+    if inspect.isclass(activation):
+        # passed an activation class, evaluate it w/ kwargs
+        return activation(**kwargs)
+    elif isinstance(activation, str):
+        # if passed a string, search for it
+        if hasattr(torch.nn, activation):
+            activation = getattr(torch.nn, activation)(**kwargs)
+        elif hasattr(functional, activation):
+            activation = getattr(functional, activation)(**kwargs)
+        else:
+            raise ValueError("didn't recognize {}".format(activation))
+        return activation
+    elif isinstance(activation, dict):
+        # interpret as key, **value
+        key = list(activation.keys())[0]
+        return _handle_activation(key, **activation[key])
+
+    # if none of these (e.g. passed a class object), then return
+    return activation
+
+
 def load_autoencoder_params(config, defaults=None):
     """
     Parse and configure py21cmnet yaml parameter file
@@ -406,6 +443,10 @@ def load_autoencoder_params(config, defaults=None):
             _update_dict(conv_layer, layer)
             final_layer['conv_layers'][i] = conv_layer
 
+    # handle final transforms
+    p['final_transforms'] = _handle_activation(p['final_transforms'])
+
+    # construct AutoEncoder network dictionary
     network = dict(encoder_layers=encoder_layers, decoder_layers=decoder_layers,
                    final_layer=final_layer, connections=p['connections'],
                    final_transforms=p['final_transforms'])

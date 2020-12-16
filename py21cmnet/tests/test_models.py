@@ -84,6 +84,8 @@ def test_autoencoder():
         config = os.path.join(CONFIG_PATH, "autoencoder{}d.yaml".format(ndim))
         defaults = os.path.join(CONFIG_PATH, "autoencoder{}d_defaults.yaml".format(ndim))
         params = utils.load_autoencoder_params(config, defaults)
+        # set seed for model generation
+        torch.manual_seed(0)
         model = models.AutoEncoder(**params)
         # pass tensor through
         out = model(X)
@@ -94,7 +96,7 @@ def test_autoencoder():
             ds = dataset.BoxDataset(X[:50], y[:50], utils.load_dummy, transform=dataset.Roll(ndim=ndim))
             dl = torch.utils.data.DataLoader(ds)
             info = utils.train(model, dl, torch.nn.MSELoss(reduction='mean'), torch.optim.Adam,
-                               optim_kwargs=dict(lr=0.1), Nepochs=3, verbose=False)
+                               optim_kwargs=dict(lr=0.1), Nepochs=3, verbose=True)
             # assert loss decreases
             assert (np.diff(info['train_loss']) < 0).all()
 

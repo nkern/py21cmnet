@@ -6,7 +6,7 @@ import torch
 import os
 import yaml
 
-from py21cmnet import utils, models
+from py21cmnet import utils, models, functional
 from py21cmnet.config import CONFIG_PATH
 from py21cmnet.data import DATA_PATH
 
@@ -56,6 +56,24 @@ def test_load_paramfile():
         out = model(X)
         assert out.shape == (2, 2) + tuple([64] * ndim)
 
+
+def test_handle_activation():
+    act = utils._handle_activation(None)
+    assert act is None
+    act = utils._handle_activation(torch.nn.ReLU)
+    assert isinstance(act, torch.nn.ReLU)
+    act = utils._handle_activation("ReLU")
+    assert isinstance(act, torch.nn.ReLU)
+    act = utils._handle_activation("ModifiedSigmoid")
+    assert isinstance(act, functional.ModifiedSigmoid)
+    pytest.raises(ValueError, utils._handle_activation, "foo")
+    act = utils._handle_activation({"ModifiedSigmoid": {"c":2}})
+    assert isinstance(act, functional.ModifiedSigmoid)
+    assert act.c == 2
+    act = utils._handle_activation([{"ModifiedSigmoid": {"c":2}}, "ReLU"])
+    assert isinstance(act[0], functional.ModifiedSigmoid)
+    assert isinstance(act[1], torch.nn.ReLU)
+    
 
 def test_load_21cmfast():
     a = np.random.randn(1000).astype(np.float).reshape(10, 10, 10)

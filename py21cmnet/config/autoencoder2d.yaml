@@ -61,4 +61,7 @@ final :
 
 connections : {1: 0}
 
-final_transforms : ['Sigmoid', 'Softplus']
+final_transforms :
+  - 'ModifiedSigmoid': {c: 2}
+  - 'Softplus'
+
