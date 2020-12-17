@@ -1,9 +1,9 @@
 ##-- py21cmnet primary config --##
-# A depth-2 autoencoder with a skip connection.
-# Operates on 2d data, combined with *_defaults.yaml
+# A depth-2 autoencoder with skip connections
+# Operates on Nd data ombined with *_defaults.yaml
 # See py21cmnet.utils.load_autoencoder_params()
 
-encode0 : 
+encode0 :
   conv_layers :
     - conv_kwargs : 
         in_channels : 2
@@ -16,52 +16,52 @@ encode1 :
   conv_layers :
     - conv_kwargs : 
         in_channels : 12
-        out_channels : 20
+        out_channels : 24
     - conv_kwargs : 
-        in_channels : 20
-        out_channels : 20
+        in_channels : 24
+        out_channels : 24
 
 decode0 : 
   conv_layers :
     - conv_kwargs : 
-          in_channels : 20
-          out_channels : 30
+          in_channels : 24
+          out_channels : 48
     - conv_kwargs : 
-          in_channels : 30
-          out_channels : 30
-  up_kwargs :
-    in_channels : 30
-    out_channels : 20
+          in_channels : 48
+          out_channels : 48
+  up_kwargs : 
+    in_channels : 48
+    out_channels : 24
 
 decode1 : 
   conv_layers :
     - conv_kwargs : 
-          in_channels : 32
+          in_channels : 48
+          out_channels : 24
+    - conv_kwargs : 
+          in_channels : 24
+          out_channels : 24
+  up_kwargs :
+    in_channels : 24
+    out_channels : 12
+
+decode2 : 
+  conv_layers :
+    - conv_kwargs : 
+          in_channels : 24
           out_channels : 12
     - conv_kwargs : 
           in_channels : 12
           out_channels : 12
-  up_kwargs :
-    in_channels : 12
-    out_channels : 6
-
-final : 
-  conv_layers :
     - conv_kwargs : 
-          in_channels : 6
-          out_channels : 3
-    - conv_kwargs : 
-          in_channels : 3
-          out_channels : 3
-    - conv_kwargs : 
-          in_channels : 3
+          in_channels : 12
           out_channels : 2
           kernel_size : 1
           padding : 0
+  up_mode : None
 
-connections : {1: 0}
+connections : {1: 1, 2: 0}
 
 final_transforms :
   - 'ModifiedSigmoid': {c: 2}
   - 'Softplus'
-

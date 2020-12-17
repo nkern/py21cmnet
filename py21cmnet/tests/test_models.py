@@ -42,7 +42,7 @@ def test_encoder():
         conv2 = dict(conv="Conv{}d".format(ndim), batch_norm='BatchNorm{}d'.format(ndim),
                      dropout='Dropout{}d'.format(ndim),
                      conv_kwargs=dict(in_channels=5, out_channels=10, kernel_size=3, padding=1))
-        E = models.Encoder([conv1, conv2], maxpool='MaxPool{}d'.format(ndim), maxpool_kwargs=dict(kernel_size=2))
+        E = models.Encoder([conv1, conv2], pool='MaxPool{}d'.format(ndim), pool_kwargs=dict(kernel_size=2))
         assert E(X).shape == X.shape[:1] + (10,) + tuple(np.array(X.shape[2:])//2)
 
 
@@ -61,7 +61,7 @@ def test_decoder():
             else:
                 up_kwargs = dict(upsample_kwargs=dict(scale_factor=2), conv='Conv{}d'.format(ndim),
                                  conv_kwargs=dict(in_channels=2, out_channels=1, kernel_size=3, padding=1))
-            D = models.Decoder([conv1, conv2], up_kwargs, conv='Conv{}d'.format(ndim), up_mode=up_mode)
+            D = models.Decoder([conv1, conv2], conv='Conv{}d'.format(ndim), up_kwargs=up_kwargs, up_mode=up_mode)
             assert D(X).shape == X.shape[:1] + (1,) + tuple(np.array(X.shape[2:])*2)
 
             # test crop and concat for skip connection
@@ -73,7 +73,7 @@ def test_decoder():
             assert Xcrop_concat.shape == Xcrop.shape[:1] + (Xcrop.shape[1] * 2,) + Xcrop.shape[2:]
 
             conv1['conv_kwargs']['in_channels'] *= 2
-            D = models.Decoder([conv1, conv2], up_kwargs, conv='Conv{}d'.format(ndim), up_mode=up_mode)
+            D = models.Decoder([conv1, conv2], conv='Conv{}d'.format(ndim), up_kwargs=up_kwargs, up_mode=up_mode)
             assert D(Xcrop, X).shape == X.shape[:1] + (1,) + tuple(np.array(X.shape[2:]))
 
 
@@ -81,7 +81,7 @@ def test_autoencoder():
     for ndim in [2, 3]:
         X, y = utils.read_test_data(fname, ndim)
         # load a parameter file and create an autoencoder object
-        config = os.path.join(CONFIG_PATH, "autoencoder{}d.yaml".format(ndim))
+        config = os.path.join(CONFIG_PATH, "autoencoder.yaml".format(ndim))
         defaults = os.path.join(CONFIG_PATH, "autoencoder{}d_defaults.yaml".format(ndim))
         params = utils.load_autoencoder_params(config, defaults)
         # set seed for model generation

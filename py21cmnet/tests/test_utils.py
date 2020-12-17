@@ -16,7 +16,7 @@ import pytest
 def test_load_paramfile():
     for ndim in [2, 3]:
         # load a parameter file and create an autoencoder object
-        config = os.path.join(CONFIG_PATH, "autoencoder{}d.yaml".format(ndim))
+        config = os.path.join(CONFIG_PATH, "autoencoder.yaml".format(ndim))
         with open(config, 'r') as f:
             config_p = yaml.load(f, Loader=yaml.FullLoader)
         defaults = os.path.join(CONFIG_PATH, "autoencoder{}d_defaults.yaml".format(ndim))
@@ -27,11 +27,11 @@ def test_load_paramfile():
         params = utils.load_autoencoder_params(config, defaults)
 
         # assert all necessary elements are present
-        assert sorted(params.keys()) == ['connections', 'decoder_layers', 'encoder_layers', 'final_layer', 'final_transforms']
+        assert sorted(params.keys()) == ['connections', 'decoder_layers', 'encoder_layers', 'final_transforms']
 
         # assert defaults and primaries exist
         for i, encoder in enumerate(params['encoder_layers']):
-            assert encoder['maxpool'] == defaults_p['encode']['maxpool']
+            assert encoder['pool'] == defaults_p['encode']['pool']
             for j, layer in enumerate(encoder['conv_layers']):
                 assert layer['conv'] == defaults_p['conv_layer']['conv']
                 assert layer['conv_kwargs']['padding'] == defaults_p['conv_layer']['conv_kwargs']['padding']
@@ -39,6 +39,7 @@ def test_load_paramfile():
 
         # assert defaults and primaries exist
         for i, decoder in enumerate(params['decoder_layers']):
+            if (i + 1) == len(params['decoder_layers']): continue
             assert decoder['up_mode'] == defaults_p['decode']['up_mode']
             for j, layer in enumerate(decoder['conv_layers']):
                 assert layer['conv'] == defaults_p['conv_layer']['conv']
@@ -46,14 +47,14 @@ def test_load_paramfile():
                 assert layer['conv_kwargs']['in_channels'] == config_p['decode{}'.format(i)]['conv_layers'][j]['conv_kwargs']['in_channels']
 
         # assert default overwritten by primary when present
-        assert params['final_layer']['conv_layers'][-1]['conv_kwargs']['padding'] == config_p['final']['conv_layers'][-1]['conv_kwargs']['padding']
+        assert params['decoder_layers'][-1]['conv_layers'][-1]['conv_kwargs']['padding'] == config_p['decode2']['conv_layers'][-1]['conv_kwargs']['padding']
 
         # try instantiating an AutoEncoder object
         model = models.AutoEncoder(**params)
 
         # try running a tensor through it
         X = torch.randn((2, 2) + tuple([64] * ndim))
-        out = model(X)
+        out = model(X, debug=True)
         assert out.shape == (2, 2) + tuple([64] * ndim)
 
 

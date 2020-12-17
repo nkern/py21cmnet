@@ -44,7 +44,7 @@ from py21cmnet.data import DATA_PATH
 from py21cmnet.config import CONFIG_PATH
 
 # load a model
-params = utils.load_autoencoder_params(os.path.join(CONFIG_PATH, "autoencoder2d.yaml"),
+params = utils.load_autoencoder_params(os.path.join(CONFIG_PATH, "autoencoder.yaml"),
                                        os.path.join(CONFIG_PATH, "autoencoder2d_defaults.yaml"))
 model = models.AutoEncoder(**params)
 

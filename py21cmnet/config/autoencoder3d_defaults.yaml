@@ -17,8 +17,8 @@ conv_layer :
   dropout_kwargs : {}
 
 encode : 
-  maxpool : 'MaxPool3d'
-  maxpool_kwargs :
+  pool : 'MaxPool3d'
+  pool_kwargs :
     kernel_size : 2
 
 decode :

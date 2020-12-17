@@ -19,7 +19,7 @@ class ConvNd(nn.Module):
                  dropout='Dropout3d', dropout_kwargs={}):
         """
         A single convolutional block:
-            ConvNd -> activation -> batch normalization (-> dropout)
+            ConvNd -> activation -> batchnorm -> dropout
 
         Args:
             conv_kwargs : dict, required
@@ -80,19 +80,20 @@ class UpSample(nn.Module):
 class Encoder(nn.Module):
     """An encoder "conv and downsample" block"""
 
-    def __init__(self, conv_layers, maxpool='MaxPool3d', maxpool_kwargs={}, device=None):
+    def __init__(self, conv_layers, pool='MaxPool3d', pool_kwargs={},
+                 device=None):
         """
         A single encoder block:
-            (conv -> activation -> batch norm) x N -> maxpool
+            (conv -> activation -> batchnorm -> dropout) x N -> maxpool
 
         Args:
             conv_layers : list of dict, required
                 List of nn.Conv kwargs for each convolutional
                 layer in this block
-            maxpool : str, default = 'MaxPool3d'
-                Maxpooling class. None for no maxpooling
-            maxpool_kwargs : dict, default = {}
-                kwargs for nn.MaxPool
+            pool : str, default = 'MaxPool3d'
+                Pooling class. None for no pooling
+            pool_kwargs : dict, default = {}
+                kwargs for Pooling instantiation
             device : str, default=None
                 device of this layer
         """
@@ -102,12 +103,12 @@ class Encoder(nn.Module):
         # append convolutional steps
         for layer in conv_layers:
             steps.append(ConvNd(**layer))
-
-        # append max pooling
-        if maxpool is not None:
-            steps.append(getattr(nn, maxpool)(**maxpool_kwargs))
-
         self.model = nn.Sequential(*steps)
+
+        # attach pooling
+        if pool is not None:
+            pool = getattr(nn, pool)(**pool_kwargs)
+        self.pool = pool
 
         # send model to device if requested
         self.device = device
@@ -127,26 +128,34 @@ class Encoder(nn.Module):
                 return X.to(self.device)
         return X
 
-    def forward(self, X):
-        return self.model(self.pass_to_device(X))
+    def forward(self, X, pooling=True):
+        """forward pass through model
+        If pooling, pass through self.pool at finish
+        """
+        # pass through conv blocks
+        out = self.model(self.pass_to_device(X))
+        if pooling and self.pool is not None:
+            out = self.pool(out)
+        return out
 
 
 class Decoder(nn.Module):
-    """A decoder "conv and upsample" block"""
+    """A decoder "upsample and conv" block"""
 
-    def __init__(self, conv_layers, up_kwargs, conv='Conv3d', up_mode='upsample', device=None):
+    def __init__(self, conv_layers, conv='Conv3d', up_kwargs={}, up_mode='upsample',
+                 device=None):
         """
         A single decoder block:
-            (conv -> activation -> batch norm) x N -> upsample
+            (conv -> activation -> batchnorm) x N -> upsample
 
         Args:
             conv_layers : list of dict, required
                 List of nn.Conv kwargs for each convolutional
                 layer in this block
-            up_kwargs : dict, required
-                Upsampling keyword arguments
             conv : str, default = 'Conv3d'
                 Convolution class, e.g. 'Conv2d' or 'Conv3d'
+            up_kwargs : dict, default = {}
+                Upsampling keyword arguments
             up_mode : str, default = 'upsample'
                 Upsampling method
                     'upsample'        : use UpSample (nn.Upsample, nn.ConvNd)
@@ -157,7 +166,7 @@ class Decoder(nn.Module):
         """
         super(Decoder, self).__init__()
         steps = []
- 
+
         # append convolutional steps
         for layer in conv_layers:
             steps.append(ConvNd(**layer))
@@ -165,7 +174,9 @@ class Decoder(nn.Module):
         # append upsampling
         if up_mode == 'upsample':
             steps.append(UpSample(**up_kwargs))
-        else:
+        elif up_mode is None:
+            pass
+        elif hasattr(nn, up_mode):
             steps.append(getattr(nn, up_mode)(**up_kwargs))
 
         self.model = nn.Sequential(*steps)
@@ -233,13 +244,14 @@ class Decoder(nn.Module):
     def forward(self, X, connection=None):
         if connection is not None:
             X = self.crop_concat(X, connection)
-        return self.model(self.pass_to_device(X))
+        out = self.model(self.pass_to_device(X))
+        return out
 
 
 class AutoEncoder(nn.Module):
     """An autoencoder"""
 
-    def __init__(self, encoder_layers, decoder_layers, final_layer,
+    def __init__(self, encoder_layers, decoder_layers,
                  connections=None, final_transforms=None):
         """
         An autoencoder with skip connections:
@@ -253,13 +265,10 @@ class AutoEncoder(nn.Module):
             decoder_layers : list of dict
                 A list of Decoder kwargs for
                 each decoder block in this network
-            final_layer : dict
-                Encoder kwargs for the final convolutional
-                layer in the network (without maxpooling)
             connections : dict
                 A dictionary mapping the skip connection of each
                 layer index in decoder_layers to a layer index in encoder_layers.
-                E.g. {0: 2, 1: 1, 2: None}
+                E.g. {1: 1, 2: 0}
             final_transforms : callable or list of callable
                 Final activation to apply to each channel of network output.
                 To apply a different activation for each channel, pass as a list.
@@ -269,51 +278,55 @@ class AutoEncoder(nn.Module):
 
         # setup encoder
         steps = []
-        for encoder_kwargs in encoder_layers:
+        for i, encoder_kwargs in enumerate(encoder_layers):
             steps.append(Encoder(**encoder_kwargs))
         self.encoder = nn.ModuleList(steps)
 
         # setup decoder
         steps = []
-        for decoder_kwargs in decoder_layers:
+        for i, decoder_kwargs in enumerate(decoder_layers):
+            if (i + 1) == len(decoder_layers):
+                if hasattr(decoder_kwargs, 'up_mode'):
+                    assert decoder_kwargs['up_mode'] is None, "no upsampling after final layer"
             steps.append(Decoder(**decoder_kwargs))
         self.decoder = nn.ModuleList(steps)
-
-        # final layer: an encoder layer with no maxpooling
-        self.final = Encoder(**final_layer, maxpool=None)
 
         # setup activations on final layer output, one for each output channel
         if final_transforms is not None:
             # sort as Nout_chan activations
-            Nout_chan = self.final.model[-1].model[0].out_channels
+            Nout_chan = self.decoder[-1].model[-1].model[0].out_channels
             if not isinstance(final_transforms, (list, tuple)):
                 final_transforms = [final_transforms for i in range(Nout_chan)]
             assert len(final_transforms) == Nout_chan
 
         self.final_transforms = final_transforms
 
-    def forward(self, X):
+    def forward(self, X, debug=False):
         # pass through encoder
-        outputs = []
+        connects = []
         for i, encode in enumerate(self.encoder):
-            X = encode(X)
-            outputs.append(X)  # save output for connections
+            # first pass thu just conv blocks to get connection
+            X = encode(X, pooling=False)
+            connects.append(X)
+            # now pass through pooling
+            if encode.pool is not None:
+                X = encode.pool(connects[-1])
+            if debug: print("finished encoder block {}".format(i))
 
         # pass through decoder
         for i, decode in enumerate(self.decoder):
+            # handle connections
             if self.connections is not None and i in self.connections and self.connections[i] is not None:
-                connection = outputs[self.connections[i]]
+                connection = connects[self.connections[i]]
             else:
                 connection = None
             X = decode(X, connection)
-
-        # final layer
-        out = self.final(X)
+            if debug: print("finished decoder block {}".format(i))
 
         # final transformations
         if self.final_transforms is not None:
             for i, ft in enumerate(self.final_transforms):
                 if ft is not None:
-                    out[:, i] = ft(out[:, i].clone())
+                    X[:, i] = ft(X[:, i].clone())
 
-        return out
+        return X

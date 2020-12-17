@@ -380,8 +380,6 @@ def load_autoencoder_params(config, defaults=None):
             list of encoder blocks
         decoder_layers : dict
             list of decoder blocks
-        final_layer : dict
-            final layer block
         connections : dict
             skip connection mapping
         final_transforms : list
@@ -444,22 +442,12 @@ def load_autoencoder_params(config, defaults=None):
 
         decoder_layers.append(decode)
 
-    # sort final layer
-    final_layer = p['final']
-    if 'conv_layer' in d:
-        for i, layer in enumerate(final_layer['conv_layers']):
-            # update defaults with what's in primary
-            conv_layer = deepcopy(d['conv_layer'])
-            _update_dict(conv_layer, layer)
-            final_layer['conv_layers'][i] = conv_layer
-
     # handle final transforms
     p['final_transforms'] = parse_activation(p['final_transforms'])
 
     # construct AutoEncoder network dictionary
     network = dict(encoder_layers=encoder_layers, decoder_layers=decoder_layers,
-                   final_layer=final_layer, connections=p['connections'],
-                   final_transforms=p['final_transforms'])
+                   connections=p['connections'], final_transforms=p['final_transforms'])
 
     return network
 
