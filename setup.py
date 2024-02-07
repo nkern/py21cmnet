@@ -34,6 +34,6 @@ setup(
     package_data    = {'py21cmnet': data_files},
     include_package_data = True,
     packages        = ['py21cmnet'],
-    package_dir     = {'hera_cal': 'hera_cal'},
-    zip_safe        = False
+    package_dir     = {'py21cmnet': 'py21cmnet'},
+    zip_safe        = False,
     )
