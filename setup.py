@@ -35,5 +35,5 @@ setup(
     include_package_data = True,
     packages        = ['py21cmnet'],
     package_dir     = {'py21cmnet': 'py21cmnet'},
-    zip_safe        = False,
+    zip_safe        = False
     )
