@@ -98,7 +98,7 @@ def test_autoencoder():
             info = utils.train(model, dl, torch.nn.MSELoss(reduction='mean'), torch.optim.Adam,
                                optim_kwargs=dict(lr=0.1), Nepochs=3, verbose=True)
             # assert loss decreases
-            assert (np.diff(info['train_loss']) < 0).all()
+            assert (np.diff(info['train_loss'].detach().numpy()) < 0).all()
 
             # pred = model(X)
             # import matplotlib.pyplot as plt;
