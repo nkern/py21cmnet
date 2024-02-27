@@ -13,7 +13,7 @@ import inspect
 from . import functional
 
 
-def train(model, train_dloader, loss_fn, optim, optim_kwargs={},
+def train(model, train_dloader, loss_fn, optim, optim_kwargs={}, track_mini=True,
           acc_fn=None, Nepochs=1, valid_dloader=None, cuda=False, verbose=True):
     """
     Model training function
@@ -31,8 +31,11 @@ def train(model, train_dloader, loss_fn, optim, optim_kwargs={},
             Optimizer function
         optim_kwargs : dict, default = {}
             Optimizer function keyword arguments
+        tracK_mini : bool, default = True
+            If True, append loss and stats every mini-batch, otherwise
+            only track every epoch.
         acc_fn : callable, default = None
-            Accuracy function
+            Accuracy function, taking acc_fn(pred_labels, true_labels)
         Nepochs : int, default = 1
             Number of training epochs
         valid_dloader : DataLoader object, default = None
@@ -58,7 +61,7 @@ def train(model, train_dloader, loss_fn, optim, optim_kwargs={},
     # iterate over epochs
     for epoch in range(Nepochs):
         if verbose:
-            print('Epoch {}/{}'.format(epoch, Nepochs))
+            print('Epoch {}/{}'.format(epoch+1, Nepochs))
             print('-' * 10)
 
         # training and validation
@@ -77,7 +80,6 @@ def train(model, train_dloader, loss_fn, optim, optim_kwargs={},
 
             running_loss = 0.0
             running_acc = 0.0
-            step = 1  # this should start at 1, not 0
             optimizer.zero_grad()
 
             # iterate over data
@@ -94,6 +96,7 @@ def train(model, train_dloader, loss_fn, optim, optim_kwargs={},
 
                     # backprop
                     loss.backward()
+                    loss = loss.detach()
 
                     # step
                     optimizer.step()
@@ -101,7 +104,7 @@ def train(model, train_dloader, loss_fn, optim, optim_kwargs={},
                 else:
                     with torch.no_grad():
                         # compute model and loss
-                        out = model(x)
+                        out = model(X)
                         loss = loss_fn(out, y)
 
                 # compute accuracy
@@ -114,12 +117,19 @@ def train(model, train_dloader, loss_fn, optim, optim_kwargs={},
                 running_loss += loss * X.shape[0]
 
                 if i % 10 == 0 and verbose:
-                    print('Current step: {}  Loss: {}'.format(i, loss))
+                    print('Current step: {}  Loss: {}'.format(i, loss.cpu()))
                     if cuda:
                         print("AllocMem (Mb) {}".format(torch.cuda.memory_allocated()/1024/1024))
                         print(torch.cuda.memory_summary())
 
-                step += 1
+                if track_mini:
+                    if phase == 'train':
+                        train_loss.append(loss.cpu())
+                        train_acc.append(acc.cpu())
+                    else:
+                        valid_loss.append(acc.cpu())
+                        valid_acc.append(acc.cpu())
+
 
             epoch_loss = running_loss / len(dataloader.dataset)
             epoch_acc = running_acc / len(dataloader.dataset)
@@ -128,10 +138,13 @@ def train(model, train_dloader, loss_fn, optim, optim_kwargs={},
                 print('{} Loss: {:.4f} Acc: {}'.format(phase, epoch_loss, epoch_acc))
                 print('-' * 10)
 
-            if phase == 'train':
-                train_loss.append(epoch_loss)
-            else:
-                valid_loss.append(epoch_loss)
+            if not track_mini:
+                if phase == 'train':
+                    train_loss.append(epoch_loss.cpu())
+                    train_acc.append(epoch_acc.cpu())
+                else:
+                    valid_loss.append(epoch_loss.cpu())
+                    valid_acc.append(epoch_acc.cpu())
 
     time_elapsed = time.time() - start
     if verbose:

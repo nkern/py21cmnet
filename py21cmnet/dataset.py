@@ -5,6 +5,7 @@ dataset module
 import numpy as np
 from skimage import transform
 from torch.utils.data import Dataset, DataLoader
+import torch
 from copy import deepcopy
 
 from . import utils
@@ -28,15 +29,15 @@ class Roll:
         # compute shift if not fed
         if shift is None:
             if self.shift is None:
-                shift = np.random.randint(0, box[0].shape[-1], self.ndim)
+                shift = tuple(torch.randint(0, box[0].shape[-1], (self.ndim,)))
             else:
                 shift = self.shift
         if isinstance(box, (list, tuple)):
             return [self.__call__(b, shift=shift) for b in box]
         if self.ndim == 2:
-            return np.roll(box, shift, axis=(-1, -2))
+            return torch.roll(box, shift, dims=(-1, -2))
         elif self.ndim == 3:
-            return np.roll(box, shift, axis=(-1, -2, -3))
+            return torch.roll(box, shift, dims=(-1, -2, -3))
 
 
 class DownSample:
@@ -119,7 +120,7 @@ class Transpose:
             return [self.__call__(b, axes=axes) for b in box]
         # modify axes for full_dim
         axes = tuple(range(dim_diff)) + tuple(np.array(axes) + dim_diff)
-        return np.transpose(box, axes)
+        return torch.transpose(box, axes)
 
 
 class BoxDataset(Dataset):
@@ -301,9 +302,9 @@ class Logarithm:
         if isinstance(box, (list, tuple)):
             return [self.__call__(b, undo=undo) for b in box]
         if not undo:
-            log = np.log10 if self.log10 else np.log
+            log = torch.log10 if self.log10 else torch.log
             return log((box - self.offset) / self.scale)
         else:
-            func = (lambda x: 10**x) if self.log10 else np.exp
+            func = (lambda x: 10**x) if self.log10 else torch.exp
             return func(box) * self.scale + self.offset
 
