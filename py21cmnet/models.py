@@ -241,9 +241,13 @@ class Decoder(nn.Module):
         X = torch.cat([self.center_crop(connection, X.shape[-Nd:]), X], dim=1)
         return X
 
-    def forward(self, X, connection=None):
+    def forward(self, X, connection=None, metadata=None):
         if connection is not None:
             X = self.crop_concat(X, connection)
+        if metadata is not None:
+            shape = X.shape
+            shape[1] = len(metadata)
+            X = torch.cat([X, metadata.expand(shape)], dim=1)
         out = self.model(self.pass_to_device(X))
         return out
 
@@ -301,7 +305,7 @@ class AutoEncoder(nn.Module):
 
         self.final_transforms = final_transforms
 
-    def forward(self, X, debug=False):
+    def forward(self, X, debug=False, metadata=None):
         # pass through encoder
         connects = []
         for i, encode in enumerate(self.encoder):
@@ -320,7 +324,7 @@ class AutoEncoder(nn.Module):
                 connection = connects[self.connections[i]]
             else:
                 connection = None
-            X = decode(X, connection)
+            X = decode(X, connection, metadata=metadata if i == 0 else None)
             if debug: print("finished decoder block {}".format(i))
 
         # final transformations

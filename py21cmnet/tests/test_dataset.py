@@ -19,8 +19,10 @@ def test_transforms():
     db = utils.load_hdf5(fname + '/deltax', dtype=np.float32)
     box = utils.load_hdf5([fname + '/deltax', fname + '/Ts'], dtype=np.float32)
 
+    db, box = torch.as_tensor(db), torch.as_tensor(box)
+
     # roll the cube
-    Roll = dataset.Roll(50, ndim=3)
+    Roll = dataset.Roll((50, 50, 50), ndim=3)
     assert Roll(db).shape == db.shape
     assert not (Roll(db) == db).any()
 
@@ -30,9 +32,9 @@ def test_transforms():
 
     # downsample
     DS = dataset.DownSample(2, ndim=3)
-    assert DS(db).shape == tuple(np.array(db.shape)/2)
+    assert DS(db).shape == torch.Size(np.array(db.shape)//2)
     assert (DS(db) == db[::2, ::2, ::2]).all()
-    assert DS(box).shape == box.shape[:1] + tuple(np.array(box.shape[1:])/2)
+    assert DS(box).shape == box.shape[:1] + torch.Size(np.array(box.shape[1:])//2)
 
     # transpose
     db_mod = db[:, ::2, ::4]
@@ -76,9 +78,9 @@ def test_dataset():
     dtype = np.float32
 
     # simple load
-    X = utils.load_hdf5(Xfiles[0], dtype=dtype)
-    y = utils.load_hdf5(yfiles[0], dtype=dtype)
-    dl = dataset.BoxDataset(Xfiles, yfiles, utils.load_hdf5, dtype=dtype)
+    X = utils.load_hdf5_torch(Xfiles[0], dtype=dtype)
+    y = utils.load_hdf5_torch(yfiles[0], dtype=dtype)
+    dl = dataset.BoxDataset(Xfiles, yfiles, utils.load_hdf5_torch, dtype=dtype)
     assert len(dl) == 1
     assert (dl[0][0] == X).all()
     assert (dl[0][1] == y).all()
@@ -90,10 +92,10 @@ def test_dataset():
     assert (dl[0][1] == y).all()
 
     # load with transformation
-    trans = Compose([dataset.Roll(shift=20, ndim=3), dataset.DownSample(thin=2, ndim=3)])
-    dl = dataset.BoxDataset(Xfiles, yfiles, utils.load_hdf5, dtype=dtype, transform=trans)
+    trans = Compose([dataset.Roll(shift=(20,20,20), ndim=3), dataset.DownSample(thin=2, ndim=3)])
+    dl = dataset.BoxDataset(Xfiles, yfiles, utils.load_hdf5_torch, dtype=dtype, transform=trans)
     assert len(dl) == 1
-    assert dl[0][0].shape == X.shape[:1] + tuple(np.array(X.shape[1:])/2)
+    assert dl[0][0].shape == X.shape[:1] + torch.Size(np.array(X.shape[1:])//2)
     assert not (dl[0][0][0] == X[0, ::2, ::2, ::2]).any()
 
 def test_augmentations():
@@ -101,8 +103,8 @@ def test_augmentations():
     Xfiles = [[fname+'/deltax', fname+'/Gamma']]
     yfiles = [[fname+'/x_HI', fname+'/Ts']]
     dtype = np.float32
-    X = utils.load_hdf5(Xfiles[0], dtype=dtype)
-    y = utils.load_hdf5(yfiles[0], dtype=dtype)
+    X = utils.load_hdf5_torch(Xfiles[0], dtype=dtype)
+    y = utils.load_hdf5_torch(yfiles[0], dtype=dtype)
 
     # test single augmentation
     aug = dataset.Logarithm(offset=-1)
@@ -124,8 +126,8 @@ def test_augmentations():
 
     # try with dataset: only one augmentation for both X and y
     Xaugment, yaugment = dataset.Logarithm(offset=-1), dataset.Logarithm(offset=-1)
-    dl = dataset.BoxDataset(Xfiles, yfiles, utils.load_hdf5, dtype=dtype)
-    dl_aug = dataset.BoxDataset(Xfiles, yfiles, utils.load_hdf5, dtype=dtype,
+    dl = dataset.BoxDataset(Xfiles, yfiles, utils.load_hdf5_torch, dtype=dtype)
+    dl_aug = dataset.BoxDataset(Xfiles, yfiles, utils.load_hdf5_torch, dtype=dtype,
                                 X_augment=Xaugment, y_augment=yaugment)
     X, y = dl[0]
     Xaug, yaug = dl_aug[0]
@@ -139,8 +141,8 @@ def test_augmentations():
     # try with some augmentation for X and y channels
     Xaugment = [dataset.Logarithm(offset=-1), None]
     yaugment = [None, dataset.Logarithm()]
-    dl = dataset.BoxDataset(Xfiles, yfiles, utils.load_hdf5, dtype=dtype)
-    dl_aug = dataset.BoxDataset(Xfiles, yfiles, utils.load_hdf5, dtype=dtype,
+    dl = dataset.BoxDataset(Xfiles, yfiles, utils.load_hdf5_torch, dtype=dtype)
+    dl_aug = dataset.BoxDataset(Xfiles, yfiles, utils.load_hdf5_torch, dtype=dtype,
                                 X_augment=Xaugment, y_augment=yaugment)
     X, y = dl[0]
     Xaug, yaug = dl_aug[0]
@@ -154,8 +156,8 @@ def test_augmentations():
     assert np.isclose(y, dl_aug.augment(Xaug, yaug, undo=True)[1], atol=1e-6).all()
 
     # try with no aug for y and check memory location
-    _X = utils.load_hdf5(Xfiles[0], dtype=dtype)
-    _y = utils.load_hdf5(yfiles[0], dtype=dtype)
+    _X = utils.load_hdf5_torch(Xfiles[0], dtype=dtype)
+    _y = utils.load_hdf5_torch(yfiles[0], dtype=dtype)
     Xaugment, yaugment = dataset.Logarithm(offset=-1), None
     dl_aug = dataset.BoxDataset([_X], [_y], utils.load_dummy,
                                 X_augment=Xaugment, y_augment=yaugment)
@@ -165,19 +167,19 @@ def test_augmentations():
     assert hex(id(_y)) == hex(id(yaug))
 
     # check inplace augmentation
-    _X = utils.load_hdf5(Xfiles[0], dtype=dtype)
-    _y = utils.load_hdf5(yfiles[0], dtype=dtype)
+    _X = utils.load_hdf5_torch(Xfiles[0], dtype=dtype)
+    _y = utils.load_hdf5_torch(yfiles[0], dtype=dtype)
     Xaugment, yaugment = dataset.Logarithm(offset=-1), dataset.Logarithm(offset=-1)
     dl_aug = dataset.BoxDataset([_X], [_y], utils.load_dummy,
                                 X_augment=Xaugment, y_augment=yaugment)
     Xaug, yaug = dl_aug.augment(_X, _y, inplace=True)
     # check that it did indeed augment
-    assert not np.isclose(_X, utils.load_hdf5(Xfiles[0], dtype=dtype), atol=1e-6).all()
-    assert not np.isclose(_y, utils.load_hdf5(yfiles[0], dtype=dtype), atol=1e-6).all()
+    assert not np.isclose(_X, utils.load_hdf5_torch(Xfiles[0], dtype=dtype), atol=1e-6).all()
+    assert not np.isclose(_y, utils.load_hdf5_torch(yfiles[0], dtype=dtype), atol=1e-6).all()
     # check memory address is the same
     assert hex(id(_X)) == hex(id(Xaug))
     assert hex(id(_y)) == hex(id(yaug))
     # check reverse inplace augmentation
     dl_aug.augment(_X, _y, undo=True, inplace=True)
-    assert np.isclose(_X, utils.load_hdf5(Xfiles[0], dtype=dtype), atol=1e-6).all()
-    assert np.isclose(_y, utils.load_hdf5(yfiles[0], dtype=dtype), atol=1e-6).all()
+    assert np.isclose(_X, utils.load_hdf5_torch(Xfiles[0], dtype=dtype), atol=1e-6).all()
+    assert np.isclose(_y, utils.load_hdf5_torch(yfiles[0], dtype=dtype), atol=1e-6).all()

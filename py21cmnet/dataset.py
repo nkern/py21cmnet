@@ -17,8 +17,9 @@ class Roll:
         """roll a periodic box by "shift" pixels
         Args:
             shift : int or tuple
-                If roll a box by shift pixels along
-                the last ndim axes. Default is random.
+                Roll the box by this many pixels
+                along each of the specified dimensions.
+                Default is a random number per dimension.
             ndim : int
                 Dimensionality of the box
         """
@@ -120,7 +121,7 @@ class Transpose:
             return [self.__call__(b, axes=axes) for b in box]
         # modify axes for full_dim
         axes = tuple(range(dim_diff)) + tuple(np.array(axes) + dim_diff)
-        return torch.transpose(box, axes)
+        return torch.permute(box, axes)
 
 
 class BoxDataset(Dataset):

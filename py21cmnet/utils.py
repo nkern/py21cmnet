@@ -111,7 +111,7 @@ def train(model, train_dloader, loss_fn, optim, optim_kwargs={}, track_mini=True
                 if acc_fn is not None:
                     acc = acc_fn(out, y)
                 else:
-                    acc = 0
+                    acc = torch.tensor(0.)
 
                 running_acc  += acc * X.shape[0]
                 running_loss += loss * X.shape[0]
@@ -310,6 +310,10 @@ def load_hdf5(fname, dtype=None):
             box = np.asarray(f[fname[1]][:], dtype=dtype)
 
     return box
+
+
+def load_hdf5_torch(*args, **kwargs):
+    return torch.as_tensor(load_hdf5(*args, **kwargs))
 
 
 def _update_dict(d1, d2):
