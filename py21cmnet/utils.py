@@ -127,7 +127,7 @@ def train(model, train_dloader, loss_fn, optim, optim_kwargs={}, track_mini=True
                         train_loss.append(loss.cpu())
                         train_acc.append(acc.cpu())
                     else:
-                        valid_loss.append(acc.cpu())
+                        valid_loss.append(loss.cpu())
                         valid_acc.append(acc.cpu())
 
 
