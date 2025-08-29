@@ -284,7 +284,7 @@ class AutoEncoder(nn.Module):
         steps = []
         for i, encoder_kwargs in enumerate(encoder_layers):
             steps.append(Encoder(**encoder_kwargs))
-        self.encoder = nn.ModuleList(steps)
+        self.encoder = nn.Sequential(*steps)
 
         # setup decoder
         steps = []
@@ -293,7 +293,7 @@ class AutoEncoder(nn.Module):
                 if hasattr(decoder_kwargs, 'up_mode'):
                     assert decoder_kwargs['up_mode'] is None, "no upsampling after final layer"
             steps.append(Decoder(**decoder_kwargs))
-        self.decoder = nn.ModuleList(steps)
+        self.decoder = nn.Sequential(*steps)
 
         # setup activations on final layer output, one for each output channel
         if final_transforms is not None:
