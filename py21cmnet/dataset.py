@@ -124,6 +124,33 @@ class Transpose:
         return torch.permute(box, axes)
 
 
+class Rot90:
+    """
+    Rotate ND images by 90 degrees
+    """
+    def __init__(self, k=None, dims=(0, 1)):
+        """
+        Parameters
+        ----------
+        k : int, optional
+            Number of times to rotate. Default
+            is a random number of times [0, 3]
+        dims : tuple, optional
+            Dimensions to rotate
+        """
+        self.k = k
+        self.dims = dims
+
+    def __call__(self, box, k=None, dims=None):
+        k = k if k is not None else self.k
+        dims = dims if dims is not None else self.dims
+
+        if k is None:
+            k = torch.randint(0, 4, (1,))[0]
+
+        return torch.rot90(box, k=k, dims=dims)
+
+
 class BoxDataset(Dataset):
     """
     Dataset for cosmological box output
