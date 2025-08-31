@@ -151,6 +151,37 @@ class Rot90:
         return torch.rot90(box, k=k, dims=dims)
 
 
+class FixedCrop:
+    """
+    Crop an Nd image / cube into a
+    fixed size.
+    """
+    def __init__(self, size, low, high):
+        """
+        Parameters
+        ----------
+        size : tuple of int
+            Size of last N dimensions after crop.
+        low : tuple of int
+            N-dim tuple holding lowest index
+            for crop along last N dims.
+        high : tuple of int
+            N-dim tuple holding highest index
+            for crop along last N dims.
+        """
+        self.size = size
+        self.low = low
+        self.high = high
+
+    def __call__(self, box):
+        crop = []
+        for s, l, h in zip(self.size, self.low, self.high):
+            i = torch.randint(l, h, (1,))
+            crop.append(slice(i, i + s))
+
+        return box[..., *tuple(crop)]
+
+
 class BoxDataset(Dataset):
     """
     Dataset for cosmological box output
