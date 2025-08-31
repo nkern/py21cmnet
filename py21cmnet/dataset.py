@@ -148,6 +148,9 @@ class Rot90:
         if k is None:
             k = torch.randint(0, 4, (1,))[0]
 
+        if isinstance(box, (list, tuple)):
+            return [self.__call__(b, k=k, dims=dims) for b in box]
+
         return torch.rot90(box, k=k, dims=dims)
 
 
@@ -173,13 +176,18 @@ class FixedCrop:
         self.low = low
         self.high = high
 
-    def __call__(self, box):
-        crop = []
-        for s, l, h in zip(self.size, self.low, self.high):
-            i = torch.randint(l, h, (1,))
-            crop.append(slice(i, i + s))
+    def __call__(self, box, crop=None):
+        if crop is None:
+            crop = []
+            for s, l, h in zip(self.size, self.low, self.high):
+                i = torch.randint(l, h, (1,))
+                crop.append(slice(i, i + s))
+            crop = tuple(crop)
 
-        return box[..., *tuple(crop)]
+        if isinstance(box, (list, tuple)):
+            return [self.__call__(b, crop=crop) for b in box]
+
+        return box[..., *crop]
 
 
 class BoxDataset(Dataset):
