@@ -81,10 +81,10 @@ def test_load_21cmfast():
     fname = os.path.join(DATA_PATH, "_xyz_testfile")
     a.tofile(fname)
 
-    box = utils.load_21cmfast(fname, dtype=np.float64, N=10)
+    box = utils.Load21cmFAST(dtype=np.float64, N=10)(fname)
     assert np.isclose(a, box).all()
 
-    box = utils.load_21cmfast([fname, fname], dtype=np.float64, N=10)
+    box = utils.Load21cmFAST(dtype=np.float64, N=10)([fname, fname])
     assert np.isclose(a, np.array([box, box])).all()
 
     os.remove(fname)

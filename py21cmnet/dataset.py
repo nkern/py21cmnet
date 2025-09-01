@@ -27,6 +27,9 @@ class Roll:
         self.ndim = ndim
 
     def __call__(self, box, shift=None):
+        if box is None:
+            return box
+
         # compute shift if not fed
         if shift is None:
             if self.shift is None:
@@ -55,6 +58,9 @@ class DownSample:
         self.thin = thin
 
     def __call__(self, box):
+        if box is None:
+            return box
+
         if isinstance(box, (list, tuple)):
             return [self.__call__(b) for b in box]
         if self.ndim == 2:
@@ -82,6 +88,9 @@ class Slice:
         self.slices = slices
 
     def __call__(self, box):
+        if box is None:
+            return box
+
         if isinstance(box, (list, tuple)):
             return [self.__call__(b) for b in box]
         if self.ndim == 2:
@@ -106,6 +115,9 @@ class Transpose:
         self.axes = axes
 
     def __call__(self, box, axes=None):
+        if box is None:
+            return box
+
         if isinstance(box, (list, tuple)):
             full_dim = box[0].ndim
         else:
@@ -142,6 +154,9 @@ class Rot90:
         self.dims = dims
 
     def __call__(self, box, k=None, dims=None):
+        if box is None:
+            return box
+
         k = k if k is not None else self.k
         dims = dims if dims is not None else self.dims
 
@@ -176,6 +191,9 @@ class Crop:
         self.high = high
 
     def __call__(self, box, crop=None):
+        if box is None:
+            return box
+
         if crop is None:
             crop = []
             for s, l, h in zip(self.size, self.low, self.high):
@@ -193,7 +211,7 @@ class RectMask:
     """
     Rectangular masking
     """
-    def __init__(self, size, low, high):
+    def __init__(self, size, low, high, inplace=False):
         """
         Parameters
         ----------
@@ -209,8 +227,12 @@ class RectMask:
         self.size = size
         self.low = low
         self.high = high
+        self.inplace = inplace
 
-    def __call__(self, box, mask=None):
+    def __call__(self, box, mask=None, inplace=None, **kwargs):
+        if box is None:
+            return box
+
         if mask is None:
             mask = torch.ones_like(box)
             crop = []
@@ -222,7 +244,13 @@ class RectMask:
         if isinstance(box, (list, tuple)):
             return [self.__call__(b, mask=mask) for b in box]
 
-        return box * mask
+        inplace = inplace if inplace is not None else self.inplace
+        if inplace:
+            box *= mask
+            return box
+
+        else:
+            return box * mask
 
 
 class BoxDataset(Dataset):
@@ -230,8 +258,8 @@ class BoxDataset(Dataset):
     Dataset for cosmological box output
     """
 
-    def __init__(self, Xfiles, yfiles, readf, transform=None,
-                 X_augment=None, y_augment=None, **kwargs):
+    def __init__(self, Xfiles, yfiles, read_X=None, read_y=None, transform=None,
+                 X_augment=None, y_augment=None):
         """Cosmological box dataset
 
         Args:
@@ -242,10 +270,14 @@ class BoxDataset(Dataset):
             yfiles : list of str, list of sublist of str, requjired
                 List of filepaths to box output of target values.
                 Same rules apply as Xfiles, must match len of Xfiles
-            readf : callable, required
-                Data read function, input as element of Xfiles or yfiles.
-                If Xfiles and yfiles holds the data in-memory,
-                use utils.load_dummy as readf.
+            read_X : callable, optional
+                Data read function for X, input as element of Xfiles.
+                Default assumes Xfiles hold tensors in memory,
+                so read_X is utils.LoadDummy.
+            read_y : callable, optional
+                Data read function for y, input as element of yfiles.
+                Default assumes yfiles hold tensors in memory,
+                so read_y is utils.LoadDummy.
             transform : callable, list of callable
                 Box transformations to apply to X and y simultaneously
                 for each draw, but possibly randomly between draws.
@@ -272,8 +304,12 @@ class BoxDataset(Dataset):
         assert len(self.Xfiles) == len(self.yfiles), "Xfiles and yfiles must have same len"
         self.Nfiles = len(self.Xfiles)
         self.transform = transform
-        self.readf = readf
-        self.kwargs = kwargs
+        if read_X is None:
+            read_X = utils.LoadDummy()
+        if read_y is None:
+            read_y = utils.LoadDummy()
+        self.read_X = read_X
+        self.read_y = read_y
         self.X_augment = X_augment
         self.y_augment = y_augment
 
@@ -282,11 +318,11 @@ class BoxDataset(Dataset):
 
     def __getitem__(self, idx):
         # load box
-        X = self.readf(self.Xfiles[idx], **self.kwargs)
-        y = self.readf(self.yfiles[idx], **self.kwargs)
+        X = self.read_X(self.Xfiles[idx])
+        y = self.read_y(self.yfiles[idx])
 
-        # augment the data if requested: only makes a copy if augmenting
-        X, y = self.augment(X, y, inplace=False)
+        # augment the data if requested
+        X, y = self.augment(X, y)
 
         # transform the data
         if self.transform is not None:
@@ -294,55 +330,49 @@ class BoxDataset(Dataset):
 
         return X, y
 
-    def augment(self, X, y, undo=False, inplace=False):
+    def augment(self, X, y, undo=False):
         """Augment X and y given augmentation parameters
 
-        Args:
-            X : numpy.ndarray or torch.Tensor
-                Feature data
-            y : numpy.ndarray or torch.Tensor
-                Target data
-            undo : bool, default=False
-                If True, undo the augmentation
-            inplace : bool, default=False
-                If True, augment data in place, otherwise
-                make a deepcopy of inputs.
-                ** Note: ** this only copies the data if
-                an augmentation is needed. If self.X_augmentation
-                is None, then X is not copied even if inplace=False.
+        Parameters
+        ----------
+        X : numpy.ndarray or torch.Tensor
+            Feature data
+        y : numpy.ndarray or torch.Tensor
+            Target data
+        undo : bool, default=False
+            If True, undo the augmentation
 
-        Returns:
-            augmented X, augmented y
+        Returns
+        -------
+        augmented X, augmented y
         """
         # augment X
         if self.X_augment is not None:
-            if not inplace:
-                X = deepcopy(X)
             if isinstance(self.X_augment, (list, tuple)):
                 # augment each channel separately
                 assert len(self.X_augment) == len(X), "X_augment len must match X"
+                X = deepcopy(X)
                 for i, xaug in enumerate(self.X_augment):
                     if callable(xaug):
                         # only augment if xaug is a callable
                         X[i] = xaug(X[i], undo=undo)
             else:
                 if callable(self.X_augment):
-                    X[:] = self.X_augment(X, undo=undo)
+                    X = self.X_augment(X, undo=undo)
 
         # augment y
         if self.y_augment is not None:
-            if not inplace:
-                y = deepcopy(y)
             if isinstance(self.y_augment, (list, tuple)):
                 # augment each channel separately
                 assert len(self.y_augment) == len(y), "y_augment len must match y"
+                y = deepcopy(y)
                 for i, yaug in enumerate(self.y_augment):
                     if callable(yaug):
                         # only augment if yaug is a callable
                         y[i] = yaug(y[i], undo=undo)
             else:
                 if callable(self.y_augment):
-                    y[:] = self.y_augment(y, undo=undo)
+                    y = self.y_augment(y, undo=undo)
 
         return X, y
 
@@ -357,7 +387,6 @@ class ComposeAugments:
     kwarg "undo: bool False", which when set to True
     undoes the augmentation.
     """
-
     def __init__(self, augments):
         """Compose augmentations
 
@@ -368,7 +397,7 @@ class ComposeAugments:
         """
         self.augments = augments
 
-    def __call__(self, X, undo=False):
+    def __call__(self, X, undo=False, **kwargs):
         augs = self.augments if not undo else self.augments[::-1]
         for aug in augs:
             X = aug(X, undo=undo)
@@ -378,7 +407,6 @@ class ComposeAugments:
 
 class Logarithm:
     """Take logarithm of data"""
-
     def __init__(self, log10=True, offset=0, scale=1):
         """Take logarithm of input
 
@@ -401,6 +429,9 @@ class Logarithm:
         self.scale = scale
 
     def __call__(self, box, undo=False):
+        if box is None:
+            return box
+
         if isinstance(box, (list, tuple)):
             return [self.__call__(b, undo=undo) for b in box]
         if not undo:

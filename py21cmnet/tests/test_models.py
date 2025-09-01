@@ -93,7 +93,7 @@ def test_autoencoder():
 
         if ndim == 2:
             # only train 2d data for now (3d takes a while...)
-            ds = dataset.BoxDataset(X[:50], y[:50], utils.load_dummy, transform=dataset.Roll(ndim=ndim))
+            ds = dataset.BoxDataset(X[:50], y[:50], utils.LoadDummy(), transform=dataset.Roll(ndim=ndim))
             dl = torch.utils.data.DataLoader(ds)
             info = utils.train(model, dl, torch.nn.MSELoss(reduction='mean'), torch.optim.Adam,
                                optim_kwargs=dict(lr=0.1), Nepochs=3, verbose=True)

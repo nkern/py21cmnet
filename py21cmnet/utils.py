@@ -156,33 +156,98 @@ def train(model, train_dloader, loss_fn, optim, optim_kwargs={}, track_mini=True
     return info
 
 
-def load_21cmfast(fname, dtype=np.float32, N=256):
+class Load21cmFAST:
     """
-    Load 21cmfast box(es) output
-
-    Args:
-        fname : str or list of str
-            If list of str, prepend boxes
-        dtype : datatype
-        N : int
-            size of box length in pixels
+    Load 21cmfast box(es) binary output
+    
+    Parameters
+    ----------
+    fname : str or list of str
+        If list of str, prepend boxes
+    dtype : data type
+        Numpyp float dtype of data in binary file.
+    N : int
+        size of box length in pixels
+    device : str
+        Push to device if needed
     """
-    if isinstance(fname, (list, tuple)):
-        box = np.empty((len(fname), N, N, N), dtype=dtype)
-        for i, fn in enumerate(fname):
-            box[i] = load_21cmfast(fn, dtype=dtype, N=N)
-    else:
-        box = np.fromfile(fname, dtype=dtype).reshape(N, N, N)
+    def __init__(self, dtype=np.float32, N=256, device=None):
+        self.dtype = dtype
+        self.N = N
+        self.device = device
 
-    return box
+    def __call__(self, fname):
+        if isinstance(fname, (list, tuple)):
+            dtype = _np2pt[self.dtype]
+            box = torch.empty((len(fname), self.N, self.N, self.N), device=self.device, dtype=dtype)
+            for i, fn in enumerate(fname):
+                box[i] = self(fn)
+        else:
+            box = np.fromfile(fname, dtype=self.dtype).reshape(self.N, self.N, self.N)
+
+        return torch.as_tensor(box, device=self.device)
 
 
-def load_dummy(fname, copy=False):
-    """Dummy load function"""
-    if copy:
-        return deepcopy(fname)
-    else:
-        return fname
+class LoadDummy:
+    """Dummy load function for data already in memory"""
+    def __init__(self, copy=False):
+        self.copy = copy
+
+    def __call__(self, fname):
+        if self.copy:
+            return deepcopy(fname)
+        else:
+            return fname
+
+
+class CPU_to_GPU:
+    """
+    Copy and move pytorch Tensor from CPU to GPU upon call.
+    """
+    def __init__(self, device, non_blocking=True):
+        self.device = device
+        self.non_blocking = non_blocking
+
+    def __call__(self, arr):
+        return arr.to(self.device, non_blocking=self.non_blocking)
+
+
+class LoadHDF5:
+    """
+    Read from HDF5 handle and move to device
+    """
+    def __init__(self, idx=None, dtype=None, device=None, non_blocking=True):
+        """
+        Parameters
+        ----------
+        idx : list
+            Optional slicing upon HDF5 read
+        dtype : str
+            Data type to convert to
+        device : str
+            Device to push data to
+        non_blocking : bool
+            Non-blocking for push to cuda
+        """
+        if idx is None:
+            idx = slice(None)
+        self.idx = idx
+        self.dtype = dtype
+        self.device = device
+        self.non_blocking = non_blocking
+
+    def __call__(self, arr):
+        if isinstance(arr, (list, tuple)):
+            # list of HDF5 handles to stack
+            arr = np.stack([a[self.idx] for a in arr])
+        else:
+            arr = arr[self.idx]
+
+        arr = torch.as_tensor(arr, dtype=self.dtype)
+        if self.device is not None:
+            arr = arr.to(self.device, non_blocking=self.non_blocking)
+
+        return arr
 
 
 def _split_hdf5(fname):
@@ -274,6 +339,27 @@ def _get_dset_meta(fname):
         fname = _split_hdf5(fname)
     with h5py.File(fname[0], 'r') as f:
         return f[fname[1]].shape, f[fname[1]].dtype
+
+
+def get_hdf5(fname, dataset):
+    """
+    Open HDF5 fname in read mode, and then
+    return the dataset handle.
+
+    Parameters
+    ----------
+    fname : str
+        Path to '*.hdf5' or '*.h5' file
+    dataset : str
+        Dataset handle to return with '/' delimited
+        groups. E.g. dataset='data1/arr' will return
+        file['data1']['arr']
+    """
+    handle = h5py.File(fname, 'r')
+    for arr in dataset.split('/'):
+        handle = handle[arr]
+
+    return handle
 
 
 def load_hdf5(fname, dtype=None):
@@ -496,3 +582,15 @@ def read_test_data(fname, ndim=3):
         y = np.array(_y)
 
     return torch.as_tensor(X), torch.as_tensor(y)
+
+
+_np2pt = {
+    np.float32: torch.float32,
+    'float32': torch.float32,
+    np.float64: torch.float64,
+    'float64': torch.float64,
+    np.complex64: torch.complex64,
+    'complex64': torch.complex64,
+    np.complex128: torch.complex128,
+    'complex128': torch.complex128,
+}
