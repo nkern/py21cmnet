@@ -56,8 +56,8 @@ X, y = utils.read_test_data(fname, ndim=2)
 out = model(X)
 
 # train the model
-ds = dataset.BoxDataset(X, y, utils.load_dummy, transform=dataset.Roll(ndim=2))
+ds = dataset.BoxDataset(X, y, transform=dataset.Roll(ndim=2))
 dl = torch.utils.data.DataLoader(ds)
 info = utils.train(model, dl, torch.nn.MSELoss(reduction='mean'), torch.optim.Adam,
-                   optim_kwargs=dict(lr=0.1), Nepochs=3)
+                   optim_kwargs=dict(lr=0.01), Nepochs=3)
 ```

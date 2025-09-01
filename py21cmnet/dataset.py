@@ -321,12 +321,12 @@ class BoxDataset(Dataset):
         X = self.read_X(self.Xfiles[idx])
         y = self.read_y(self.yfiles[idx])
 
-        # augment the data if requested
-        X, y = self.augment(X, y)
-
         # transform the data
         if self.transform is not None:
             X, y = self.transform((X, y))
+
+        # augment the data if requested
+        X, y = self.augment(X, y)
 
         return X, y
 
