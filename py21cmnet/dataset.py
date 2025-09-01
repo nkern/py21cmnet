@@ -154,10 +154,9 @@ class Rot90:
         return torch.rot90(box, k=k, dims=dims)
 
 
-class FixedCrop:
+class Crop:
     """
-    Crop an Nd image / cube into a
-    fixed size.
+    Crop an Nd image / cube.
     """
     def __init__(self, size, low, high):
         """
@@ -188,6 +187,42 @@ class FixedCrop:
             return [self.__call__(b, crop=crop) for b in box]
 
         return box[..., *crop]
+
+
+class RectMask:
+    """
+    Rectangular masking
+    """
+    def __init__(self, size, low, high):
+        """
+        Parameters
+        ----------
+        size : tuple of int
+            Size of last N dimensions of mask.
+        low : tuple of int
+            N-dim tuple holding lowest index
+            for mask along last N dims.
+        high : tuple of int
+            N-dim tuple holding highest index
+            for mask along last N dims.
+        """
+        self.size = size
+        self.low = low
+        self.high = high
+
+    def __call__(self, box, mask=None):
+        if mask is None:
+            mask = torch.ones_like(box)
+            crop = []
+            for s, l, h in zip(self.size, self.low, self.high):
+                i = torch.randint(l, h, (1,))
+                crop.append(slice(i, i + s))
+            mask[..., *tuple(crop)] = 0.0
+
+        if isinstance(box, (list, tuple)):
+            return [self.__call__(b, mask=mask) for b in box]
+
+        return box * mask
 
 
 class BoxDataset(Dataset):
