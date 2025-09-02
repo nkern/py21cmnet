@@ -14,7 +14,7 @@ from . import functional
 
 
 def train(model, train_dloader, loss_fn, optimizer, track_mini=True,
-          acc_fn=None, Nepochs=1, valid_dloader=None, verbose=True):
+          acc_fn=None, Nepochs=1, valid_dloader=None, scheduler=None, verbose=True):
     """
     Model training function
 
@@ -39,6 +39,8 @@ def train(model, train_dloader, loss_fn, optimizer, track_mini=True,
             Number of training epochs
         valid_dloader : DataLoader object, default = None
             Similar to train_dloader, but for a validation dataset
+        scheduler : LRScheduler object
+            Schedule the learning rate after every epoch.
 
     Returns:
         dict
@@ -135,6 +137,10 @@ def train(model, train_dloader, loss_fn, optimizer, track_mini=True,
                 else:
                     valid_loss.append(epoch_loss.cpu())
                     valid_acc.append(epoch_acc.cpu())
+
+        # adjust the lr if needed
+        if scheduler is not None:
+            scheduler.step()
 
     time_elapsed = time.time() - start
     if verbose:
