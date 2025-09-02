@@ -363,11 +363,12 @@ class BoxDataset(Dataset):
         X, y = self.augment(X, y)
 
         # get weights
-        w = None
         if self.get_w is not None:
             w = self.get_w(X, y)
 
-        return X, y, w
+            return X, y, w
+
+        return X, y
 
     def augment(self, X, y, undo=False):
         """Augment X and y given augmentation parameters

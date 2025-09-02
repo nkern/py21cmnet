@@ -79,12 +79,15 @@ def train(model, train_dloader, loss_fn, optim, optim_kwargs={}, track_mini=True
             optimizer.zero_grad()
 
             # iterate over data
-            for i, (X, y, w) in enumerate(dataloader):
+            for i, data in enumerate(dataloader):
+                # data is (X, y, [w]) where
+                # [w] is optional weights
+
                 # forward pass
                 if phase == 'train':
                     # compute model and loss
-                    out = model(X)
-                    loss = loss_fn(out, y, w)
+                    out = model(data[0])  # X = data[0]
+                    loss = loss_fn(out, *data[1:])  # (y ,[w]) = data[1:]
 
                     # backprop
                     loss.backward()
@@ -96,12 +99,12 @@ def train(model, train_dloader, loss_fn, optim, optim_kwargs={}, track_mini=True
                 else:
                     with torch.no_grad():
                         # compute model and loss
-                        out = model(X)
-                        loss = loss_fn(out, y, w)
+                        out = model(data[0])
+                        loss = loss_fn(out, *data[1:])
 
                 # compute accuracy
                 if acc_fn is not None:
-                    acc = acc_fn(out, y, w)
+                    acc = acc_fn(out, *data[1:])
                 else:
                     acc = torch.tensor(0.)
 
