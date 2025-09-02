@@ -15,11 +15,12 @@ class ConvNd(nn.Module):
 
     def __init__(self, conv_kwargs, conv='Conv3d',
                  activation='ReLU', act_kwargs={},
-                 batch_norm='BatchNorm3d', norm_kwargs={},
-                 dropout=None, dropout_kwargs={}):
+                 norm='BatchNorm3d', norm_kwargs={},
+                 norm_before_activation=True,
+                 dropout='Dropout3d', dropout_kwargs={}):
         """
         A single convolutional block:
-            ConvNd -> activation -> batchnorm -> dropout
+            ConvNd -> norm -> activation -> dropout
 
         Args:
             conv_kwargs : dict, required
@@ -30,10 +31,13 @@ class ConvNd(nn.Module):
                 activation function. None for no activation
             act_kwargs : dict, default = {}
                 keyword arguments for activation function
-            batch_norm : str, default = 'BatchNorm3d'
-                batch normalization. None for no normalization
+            norm : str, default = 'BatchNorm3d'
+                Normalization type. None for no normalization
             norm_kwargs : dict, default = {}
                 keyword arguments for batch normalization function
+            norm_before_activation : bool, optional
+                If True, set normalization before activation (default),
+                otherwise put it after the activation.
             dropout : str, default='Dropout3d'
                 Dropout layer. None for no dropout
             dropout_kwargs : dict, default = None
@@ -41,11 +45,16 @@ class ConvNd(nn.Module):
         """
         super(ConvNd, self).__init__()
         steps = []
+        # append conv operator
         steps.append(getattr(nn, conv)(**conv_kwargs))
+        if norm_before_activation:
+            if norm is not None:
+                steps.append(getattr(nn, norm)(**norm_kwargs))
         if activation is not None:
             steps.append(getattr(nn, activation)(**act_kwargs))
-        if batch_norm is not None:
-            steps.append(getattr(nn, batch_norm)(conv_kwargs['out_channels'], **norm_kwargs))
+        if not norm_before_activation:
+            if norm is not None:
+                steps.append(getattr(nn, norm)(**norm_kwargs))
         if dropout is not None:
             steps.append(getattr(nn, dropout)(**dropout_kwargs))
         self.model = nn.Sequential(*steps)
@@ -84,7 +93,7 @@ class Encoder(nn.Module):
                  device=None):
         """
         A single encoder block:
-            (conv -> activation -> batchnorm -> dropout) x N -> maxpool
+            (conv -> norm -> activation -> dropout) x N -> maxpool
 
         Args:
             conv_layers : list of dict, required
@@ -146,7 +155,7 @@ class Decoder(nn.Module):
                  device=None):
         """
         A single decoder block:
-            (conv -> activation -> batchnorm) x N -> upsample
+            (conv -> norm -> activation) x N -> upsample
 
         Args:
             conv_layers : list of dict, required
