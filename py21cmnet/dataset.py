@@ -211,7 +211,7 @@ class RectMask:
     """
     Rectangular masking
     """
-    def __init__(self, size, low, high, N=1, inplace=False):
+    def __init__(self, size, low, high, N=1, store_mask=None, inplace=False):
         """
         Parameters
         ----------
@@ -225,11 +225,14 @@ class RectMask:
             for mask along last N dims.
         N : int
             Number of masked regions to make
+        store_mask : dict
+            Store the mask here as 'mask'
         """
         self.size = size
         self.low = low
         self.high = high
         self.N = N
+        self.store_mask = store_mask
         self.inplace = inplace
 
     def __call__(self, box, mask=None, inplace=None, **kwargs):
@@ -248,6 +251,9 @@ class RectMask:
         if isinstance(box, (list, tuple)):
             return [self.__call__(b, mask=mask) for b in box]
 
+        if self.store_mask is not None:
+            self.store_mask['mask'] = mask
+
         inplace = inplace if inplace is not None else self.inplace
         if inplace:
             box *= mask
@@ -257,47 +263,70 @@ class RectMask:
             return box * mask
 
 
+class MaskWeight:
+    """
+    Construct loss function weights given
+    image mask. Feed self.store_mask to 
+    input of RectMask or other masking augmentations.
+    """
+    def __init__(self):
+        self.store_mask = {}
+
+    def __call__(self, *args, **kwargs):
+        w = None
+        if 'mask' in self.store_mask:
+            w = 1 - self.store_mask['mask']
+
+        return w
+
+
 class BoxDataset(Dataset):
     """
     Dataset for cosmological box output
     """
+    def __init__(self, Xfiles, yfiles, read_X=None, read_y=None, get_w=None,
+                 transform=None, X_augment=None, y_augment=None):
+        """
+        Cosmological box dataset
 
-    def __init__(self, Xfiles, yfiles, read_X=None, read_y=None, transform=None,
-                 X_augment=None, y_augment=None):
-        """Cosmological box dataset
+        Parameters
+        ----------
+        Xfiles : list of str, list of sublist of str, required
+            List of filepaths (of len Nsamples) to box output of
+            feature values. If fed as a list of sublist of str,
+            each element in a sublist is a unique channel.
+        yfiles : list of str, list of sublist of str, requjired
+            List of filepaths to box output of target values.
+            Same rules apply as Xfiles, must match len of Xfiles
+        read_X : callable, optional
+            Data read function for X, input as element of Xfiles.
+            Default assumes Xfiles hold tensors in memory,
+            so read_X is utils.LoadDummy.
+        read_y : callable, optional
+            Data read function for y, input as element of yfiles.
+            Default assumes yfiles hold tensors in memory,
+            so read_y is utils.LoadDummy.
+        get_w : callable, optional
+            Construct the loss function weights of the forward pass.
+            Takes transformed & augmented (X, y) and returns weights
+            with shape matching targets, y.
+        transform : callable, list of callable
+            Box transformations to apply to X and y simultaneously
+            for each draw, but possibly randomly between draws.
+        X_augment : callable, list of callable
+            Augmentation(s) to apply to Xfiles, if fed as list
+            must be of len Nchannel. Feed as None for no augmentation.
+        y_augment : callable, list of callable
+            Augmentation(s) to apply to yfiles, if fed as list
+            must be of len Nchannel. Feed as None for no augmentation.
 
-        Args:
-            Xfiles : list of str, list of sublist of str, required
-                List of filepaths (of len Nsamples) to box output of
-                feature values. If fed as a list of sublist of str,
-                each element in a sublist is a unique channel.
-            yfiles : list of str, list of sublist of str, requjired
-                List of filepaths to box output of target values.
-                Same rules apply as Xfiles, must match len of Xfiles
-            read_X : callable, optional
-                Data read function for X, input as element of Xfiles.
-                Default assumes Xfiles hold tensors in memory,
-                so read_X is utils.LoadDummy.
-            read_y : callable, optional
-                Data read function for y, input as element of yfiles.
-                Default assumes yfiles hold tensors in memory,
-                so read_y is utils.LoadDummy.
-            transform : callable, list of callable
-                Box transformations to apply to X and y simultaneously
-                for each draw, but possibly randomly between draws.
-            X_augment : callable, list of callable
-                Augmentation(s) to apply to Xfiles, if fed as list
-                must be of len Nchannel. Feed as None for no augmentation.
-            y_augment : callable, list of callable
-                Augmentation(s) to apply to yfiles, if fed as list
-                must be of len Nchannel. Feed as None for no augmentation.
-
-        Notes:
-            Augmentation and transformation are defined differently.
-            An augmentation is an action that is independent of X or y, and
-            can vary from channel to channel. To apply multiple augmentations
-            to a single channel, you can compose them using dataset.ComposeAugments.
-            A transformation is applied to X and y (and all channels) simultaneously.
+        Notes
+        -----
+        Augmentation and transformation are defined differently.
+        An augmentation is an action that is independent of X or y, and
+        can vary from channel to channel. To apply multiple augmentations
+        to a single channel, you can compose them using dataset.ComposeAugments.
+        A transformation is applied to X and y (and all channels) simultaneously.
         """
         if isinstance(Xfiles, str):
             Xfiles = [Xfiles]
@@ -316,6 +345,7 @@ class BoxDataset(Dataset):
         self.read_y = read_y
         self.X_augment = X_augment
         self.y_augment = y_augment
+        self.get_w = get_w
 
     def __len__(self):
         return len(self.Xfiles)
@@ -332,7 +362,12 @@ class BoxDataset(Dataset):
         # augment the data if requested
         X, y = self.augment(X, y)
 
-        return X, y
+        # get weights
+        w = None
+        if self.get_w is not None:
+            w = self.get_w(X, y)
+
+        return X, y, w
 
     def augment(self, X, y, undo=False):
         """Augment X and y given augmentation parameters

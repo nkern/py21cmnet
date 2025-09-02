@@ -14,7 +14,7 @@ from . import functional
 
 
 def train(model, train_dloader, loss_fn, optim, optim_kwargs={}, track_mini=True,
-          acc_fn=None, Nepochs=1, valid_dloader=None, cuda=False, verbose=True):
+          acc_fn=None, Nepochs=1, valid_dloader=None, verbose=True):
     """
     Model training function
 
@@ -40,16 +40,12 @@ def train(model, train_dloader, loss_fn, optim, optim_kwargs={}, track_mini=True
             Number of training epochs
         valid_dloader : DataLoader object, default = None
             Similar to train_dloader, but for a validation dataset
-        cuda : bool, default=False
-            For running on GPUs, set to True
 
     Returns:
         dict
             Dictionary with training info
     """
     start = time.time()
-    if cuda:
-        model.cuda()
 
     # setup optimizer
     optimizer = optim(model.parameters(), **optim_kwargs)
@@ -83,16 +79,12 @@ def train(model, train_dloader, loss_fn, optim, optim_kwargs={}, track_mini=True
             optimizer.zero_grad()
 
             # iterate over data
-            for i, (X, y) in enumerate(dataloader):
-                if cuda:
-                    X = X.cuda()
-                    y = y.cuda()
-
+            for i, (X, y, w) in enumerate(dataloader):
                 # forward pass
                 if phase == 'train':
                     # compute model and loss
                     out = model(X)
-                    loss = loss_fn(out, y)
+                    loss = loss_fn(out, y, w)
 
                     # backprop
                     loss.backward()
@@ -105,11 +97,11 @@ def train(model, train_dloader, loss_fn, optim, optim_kwargs={}, track_mini=True
                     with torch.no_grad():
                         # compute model and loss
                         out = model(X)
-                        loss = loss_fn(out, y)
+                        loss = loss_fn(out, y, w)
 
                 # compute accuracy
                 if acc_fn is not None:
-                    acc = acc_fn(out, y)
+                    acc = acc_fn(out, y, w)
                 else:
                     acc = torch.tensor(0.)
 
@@ -118,9 +110,6 @@ def train(model, train_dloader, loss_fn, optim, optim_kwargs={}, track_mini=True
 
                 if i % 10 == 0 and verbose:
                     print('Current step: {}  Loss: {}'.format(i, loss.cpu()))
-                    if cuda:
-                        print("AllocMem (Mb) {}".format(torch.cuda.memory_allocated()/1024/1024))
-                        print(torch.cuda.memory_summary())
 
                 if track_mini:
                     if phase == 'train':
@@ -150,8 +139,13 @@ def train(model, train_dloader, loss_fn, optim, optim_kwargs={}, track_mini=True
     if verbose:
         print('Training complete in {:.0f}m {:.0f}s'.format(time_elapsed // 60, time_elapsed % 60))    
     
-    info = dict(train_loss=train_loss, valid_loss=valid_loss, train_acc=train_acc, valid_acc=valid_acc,
-                optimizer=optimizer)
+    info = dict(
+        train_loss=train_loss,
+        valid_loss=valid_loss,
+        train_acc=train_acc,
+        valid_acc=valid_acc,
+        optimizer=optimizer
+    )
 
     return info
 
