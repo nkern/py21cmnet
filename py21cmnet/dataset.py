@@ -229,7 +229,7 @@ class RectMask:
         self.size = size
         self.low = low
         self.high = high
-        self.N = 1
+        self.N = N
         self.inplace = inplace
 
     def __call__(self, box, mask=None, inplace=None, **kwargs):
