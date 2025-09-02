@@ -13,7 +13,7 @@ import inspect
 from . import functional
 
 
-def train(model, train_dloader, loss_fn, optim, optim_kwargs={}, track_mini=True,
+def train(model, train_dloader, loss_fn, optimizer, track_mini=True,
           acc_fn=None, Nepochs=1, valid_dloader=None, verbose=True):
     """
     Model training function
@@ -27,11 +27,10 @@ def train(model, train_dloader, loss_fn, optim, optim_kwargs={}, track_mini=True
             where X is the mini-batch feature tensor, and y is the labels.
         loss_fn : callable
             Loss function. Should return a torch.nn.modules.loss._Loss object
-        optim : callable
-            Optimizer function
-        optim_kwargs : dict, default = {}
-            Optimizer function keyword arguments
-        tracK_mini : bool, default = True
+        optimizer : Optimizer object or LRScheduler object
+            Optimizer object initialized with model.parameters(),
+            or a LRScheduler object.
+        track_mini : bool, default = True
             If True, append loss and stats every mini-batch, otherwise
             only track every epoch.
         acc_fn : callable, default = None
@@ -46,9 +45,6 @@ def train(model, train_dloader, loss_fn, optim, optim_kwargs={}, track_mini=True
             Dictionary with training info
     """
     start = time.time()
-
-    # setup optimizer
-    optimizer = optim(model.parameters(), **optim_kwargs)
 
     # setup
     train_loss, valid_loss = [], []
@@ -82,12 +78,14 @@ def train(model, train_dloader, loss_fn, optim, optim_kwargs={}, track_mini=True
             for i, data in enumerate(dataloader):
                 # data is (X, y, [w]) where
                 # [w] is optional weights
+                X = data[0]
+                yw = data[1:]
 
                 # forward pass
                 if phase == 'train':
                     # compute model and loss
-                    out = model(data[0])  # X = data[0]
-                    loss = loss_fn(out, *data[1:])  # (y ,[w]) = data[1:]
+                    out = model(X)  # X = data[0]
+                    loss = loss_fn(out, *yw)  # (y, [w]) = data[1:]
 
                     # backprop
                     loss.backward()
@@ -100,11 +98,11 @@ def train(model, train_dloader, loss_fn, optim, optim_kwargs={}, track_mini=True
                     with torch.no_grad():
                         # compute model and loss
                         out = model(data[0])
-                        loss = loss_fn(out, *data[1:])
+                        loss = loss_fn(out, *yw)
 
                 # compute accuracy
                 if acc_fn is not None:
-                    acc = acc_fn(out, *data[1:])
+                    acc = acc_fn(out, *yw)
                 else:
                     acc = torch.tensor(0.)
 
@@ -147,7 +145,6 @@ def train(model, train_dloader, loss_fn, optim, optim_kwargs={}, track_mini=True
         valid_loss=valid_loss,
         train_acc=train_acc,
         valid_acc=valid_acc,
-        optimizer=optimizer
     )
 
     return info
