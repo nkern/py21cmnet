@@ -211,7 +211,7 @@ class RectMask:
     """
     Rectangular masking
     """
-    def __init__(self, size, low, high, inplace=False):
+    def __init__(self, size, low, high, N=1, inplace=False):
         """
         Parameters
         ----------
@@ -223,10 +223,13 @@ class RectMask:
         high : tuple of int
             N-dim tuple holding highest index
             for mask along last N dims.
+        N : int
+            Number of masked regions to make
         """
         self.size = size
         self.low = low
         self.high = high
+        self.N = 1
         self.inplace = inplace
 
     def __call__(self, box, mask=None, inplace=None, **kwargs):
@@ -235,11 +238,12 @@ class RectMask:
 
         if mask is None:
             mask = torch.ones_like(box)
-            crop = []
-            for s, l, h in zip(self.size, self.low, self.high):
-                i = torch.randint(l, h, (1,))
-                crop.append(slice(i, i + s))
-            mask[..., *tuple(crop)] = 0.0
+            for i in range(self.N):
+                crop = []
+                for s, l, h in zip(self.size, self.low, self.high):
+                    start = torch.randint(l, h, (1,))
+                    crop.append(slice(start, start + s))
+                mask[..., *tuple(crop)] = 0.0
 
         if isinstance(box, (list, tuple)):
             return [self.__call__(b, mask=mask) for b in box]
