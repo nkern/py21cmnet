@@ -280,6 +280,35 @@ class MaskWeight:
         return w
 
 
+class GaussNoise:
+    """
+    Add gaussian noise
+    """
+    def __init__(self, shape, amp=1.0, device=None, dtype=None, inplace=False):
+        self.shape = shape
+        self.device = device
+        self.amp = amp
+        self.dtype = dtype
+        self.inplace = inplace
+
+    def __call__(self, box, noise=None):
+        if box is None:
+            return box
+
+        if noise is None:
+            noise = torch.randn(shape, device=self.device, dtype=self.dtype) * self.amp
+
+        if isinstance(box, (list, tuple)):
+            return [self.__call__(b, noise=noise) for b in box]
+
+        if self.inplace:
+            box += noise
+        else:
+            box = box + noise
+
+        return box
+
+ 
 class BoxDataset(Dataset):
     """
     Dataset for cosmological box output
@@ -415,6 +444,27 @@ class BoxDataset(Dataset):
                     y = self.y_augment(y, undo=undo)
 
         return X, y
+
+
+class ComposeTransforms:
+    """
+    A class to compose multiple transformations.
+    """
+    def __init__(self, transforms):
+        """
+        Parameters
+        ----------
+        transforms : list
+            List of callables to be applied
+            in the order of the list
+        """
+        self.transforms = transforms
+
+    def __call__(self, X, **kwargs):
+        for transform in self.transforms:
+            X = transform(X)
+
+        return X
 
 
 class ComposeAugments:

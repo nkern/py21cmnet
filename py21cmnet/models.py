@@ -15,9 +15,9 @@ class ConvNd(nn.Module):
 
     def __init__(self, conv_kwargs, conv='Conv3d',
                  activation='ReLU', act_kwargs={},
-                 norm='BatchNorm3d', norm_kwargs={},
+                 norm=None, norm_kwargs={},
                  norm_before_activation=True,
-                 dropout='Dropout3d', dropout_kwargs={}):
+                 dropout=None, dropout_kwargs={}):
         """
         A single convolutional block:
             ConvNd -> norm -> activation -> dropout
