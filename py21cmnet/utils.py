@@ -489,13 +489,19 @@ def load_autoencoder_params(config, defaults=None):
             final transformations on output
     """
     # open files
-    with open(config, 'r') as f:
-        p = yaml.load(f, Loader=yaml.FullLoader)
-        _update_yaml(p)
+    if isinstance(config, str):
+        with open(config, 'r') as f:
+            p = yaml.load(f, Loader=yaml.FullLoader)
+    else:
+        p = config
+    _update_yaml(p)
     if defaults is not None:
-        with open(defaults, 'r') as f:
-            d = yaml.load(f, Loader=yaml.FullLoader)
-            _update_yaml(d)
+        if isinstance(defaults, str):
+            with open(defaults, 'r') as f:
+                d = yaml.load(f, Loader=yaml.FullLoader)
+        else:
+            d = defaults
+        _update_yaml(d)
     else:
         d = {}
 
