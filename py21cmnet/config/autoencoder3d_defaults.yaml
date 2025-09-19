@@ -11,7 +11,7 @@ conv_layer :
     padding_mode : 'circular'
   activation : 'ReLU'
   act_kwargs : {}
-  batch_norm : 'BatchNorm3d'
+  norm : 'BatchNorm3d'
   norm_kwargs : {}
   dropout : None
   dropout_kwargs : {}
