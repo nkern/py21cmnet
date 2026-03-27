@@ -6,7 +6,7 @@ import torch
 import os
 import yaml
 
-from py21cmnet import utils, models, functional
+from py21cmnet import utils, conv, functional
 from py21cmnet.config import CONFIG_PATH
 from py21cmnet.data import DATA_PATH
 
@@ -50,7 +50,7 @@ def test_load_paramfile():
         assert params['decoder_layers'][-1]['conv_layers'][-1]['conv_kwargs']['padding'] == config_p['decode2']['conv_layers'][-1]['conv_kwargs']['padding']
 
         # try instantiating an AutoEncoder object
-        model = models.AutoEncoder(**params)
+        model = conv.ConvAutoEncoder(**params)
 
         # try running a tensor through it
         X = torch.randn((2, 2) + tuple([64] * ndim))

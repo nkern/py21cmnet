@@ -1,5 +1,5 @@
 """
-neural network module
+convolutional neural network module
 """
 
 import numpy as np
@@ -86,7 +86,7 @@ class UpSample(nn.Module):
         return self.model(X)
 
 
-class Encoder(nn.Module):
+class ConvEncoder(nn.Module):
     """An encoder "conv and downsample" block"""
 
     def __init__(self, conv_layers, pool='MaxPool3d', pool_kwargs={},
@@ -106,7 +106,7 @@ class Encoder(nn.Module):
             device : str, default=None
                 device of this layer
         """
-        super(Encoder, self).__init__()
+        super(ConvEncoder, self).__init__()
         steps = []
 
         # append convolutional steps
@@ -148,7 +148,7 @@ class Encoder(nn.Module):
         return out
 
 
-class Decoder(nn.Module):
+class ConvDecoder(nn.Module):
     """A decoder "upsample and conv" block"""
 
     def __init__(self, conv_layers, conv='Conv3d', up_kwargs={}, up_mode='upsample',
@@ -173,7 +173,7 @@ class Decoder(nn.Module):
             device : str, default=None
                 device of this layer
         """
-        super(Decoder, self).__init__()
+        super(ConvDecoder, self).__init__()
         steps = []
 
         # append convolutional steps
@@ -261,8 +261,35 @@ class Decoder(nn.Module):
         return out
 
 
-class AutoEncoder(nn.Module):
-    """An autoencoder"""
+class FlattenLinear(nn.Module):
+    def __init__(
+        self,
+        start_dim,
+        end_dim,
+        in_features,
+        out_features,
+        bias=True,
+        device=None,
+        dtype=None
+    ):
+        super().__init__()
+
+        self.start_dim = start_dim
+        self.end_dim = end_dim
+        self.fc = nn.Linear(in_features, out_features, bias=bias, device=device, dtype=dtype)
+
+    def forward(self, inp):
+        # flatten
+        inp = torch.flatten(inp, self.start_dim, self.end_dim)
+
+        # linear
+        inp = self.fc(inp)
+
+        return inp
+
+
+class ConvAutoEncoder(nn.Module):
+    """A U-Net convolutional autoencoder"""
 
     def __init__(self, encoder_layers, decoder_layers,
                  connections=None, final_transforms=None):
@@ -286,13 +313,13 @@ class AutoEncoder(nn.Module):
                 Final activation to apply to each channel of network output.
                 To apply a different activation for each channel, pass as a list.
         """
-        super(AutoEncoder, self).__init__()
+        super(ConvAutoEncoder, self).__init__()
         self.connections = connections
 
         # setup encoder
         steps = []
         for i, encoder_kwargs in enumerate(encoder_layers):
-            steps.append(Encoder(**encoder_kwargs))
+            steps.append(ConvEncoder(**encoder_kwargs))
         self.encoder = nn.Sequential(*steps)
 
         # setup decoder
@@ -301,7 +328,7 @@ class AutoEncoder(nn.Module):
             if (i + 1) == len(decoder_layers):
                 if hasattr(decoder_kwargs, 'up_mode'):
                     assert decoder_kwargs['up_mode'] is None, "no upsampling after final layer"
-            steps.append(Decoder(**decoder_kwargs))
+            steps.append(ConvDecoder(**decoder_kwargs))
         self.decoder = nn.Sequential(*steps)
 
         # setup activations on final layer output, one for each output channel
@@ -338,6 +365,8 @@ class AutoEncoder(nn.Module):
 
         # final transformations
         if self.final_transforms is not None:
+            # to prevent modified inplace errors
+            X = X.clone()
             for i, ft in enumerate(self.final_transforms):
                 if ft is not None:
                     X[:, i] = ft(X[:, i].clone())

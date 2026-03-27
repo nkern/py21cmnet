@@ -8,27 +8,39 @@ encode0 :
     - conv_kwargs : 
         in_channels : 2
         out_channels : 12
+      norm_kwargs :
+        num_features : 12
     - conv_kwargs : 
         in_channels : 12
         out_channels : 12
+      norm_kwargs :
+        num_features : 12
 
 encode1 : 
   conv_layers :
     - conv_kwargs : 
         in_channels : 12
         out_channels : 24
+      norm_kwargs:
+        num_features : 24
     - conv_kwargs : 
         in_channels : 24
         out_channels : 24
+      norm_kwargs : 
+        num_features : 24
 
 decode0 : 
   conv_layers :
     - conv_kwargs : 
-          in_channels : 24
-          out_channels : 48
+        in_channels : 24
+        out_channels : 48
+      norm_kwargs:
+        num_features : 48
     - conv_kwargs : 
-          in_channels : 48
-          out_channels : 48
+        in_channels : 48
+        out_channels : 48
+      norm_kwargs:
+        num_features : 48
   up_kwargs : 
     in_channels : 48
     out_channels : 24
@@ -36,11 +48,15 @@ decode0 :
 decode1 : 
   conv_layers :
     - conv_kwargs : 
-          in_channels : 48
-          out_channels : 24
+        in_channels : 48
+        out_channels : 24
+      norm_kwargs :
+        num_features : 24
     - conv_kwargs : 
-          in_channels : 24
-          out_channels : 24
+        in_channels : 24
+        out_channels : 24
+      norm_kwargs :
+        num_features : 24
   up_kwargs :
     in_channels : 24
     out_channels : 12
@@ -48,16 +64,22 @@ decode1 :
 decode2 : 
   conv_layers :
     - conv_kwargs : 
-          in_channels : 24
-          out_channels : 12
+        in_channels : 24
+        out_channels : 12
+      norm_kwargs :
+        num_features : 12
     - conv_kwargs : 
-          in_channels : 12
-          out_channels : 12
+        in_channels : 12
+        out_channels : 12
+      norm_kwargs :
+        num_features : 12
     - conv_kwargs : 
-          in_channels : 12
-          out_channels : 2
-          kernel_size : 1
-          padding : 0
+        in_channels : 12
+        out_channels : 2
+        kernel_size : 1
+        padding : 0
+      norm_kwargs :
+        num_features: 2
   up_mode : None
 
 connections : {1: 1, 2: 0}

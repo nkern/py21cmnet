@@ -7,7 +7,7 @@ from torchvision.transforms import Compose
 import os
 import yaml
 
-from py21cmnet import utils, models, dataset
+from py21cmnet import utils, models, dataset, augment
 from py21cmnet.config import CONFIG_PATH
 from py21cmnet.data import DATA_PATH
 
@@ -21,7 +21,7 @@ def test_transforms():
     box = load([utils.get_hdf5(fname, ds) for ds in ['deltax', 'Ts']])
 
     # roll the cube
-    Roll = dataset.Roll((50, 50, 50), ndim=3)
+    Roll = augment.Roll((50, 50, 50), ndim=3)
     assert Roll(db).shape == db.shape
     assert not (Roll(db) == db).any()
 
@@ -30,14 +30,14 @@ def test_transforms():
     assert not (Roll(box) == box).any()
 
     # downsample
-    DS = dataset.DownSample(2, ndim=3)
+    DS = augment.DownSample(2, ndim=3)
     assert DS(db).shape == torch.Size(np.array(db.shape)//2)
     assert (DS(db) == db[::2, ::2, ::2]).all()
     assert DS(box).shape == box.shape[:1] + torch.Size(np.array(box.shape[1:])//2)
 
     # transpose
     db_mod = db[:, ::2, ::4]
-    DS = dataset.Transpose(ndim=3)
+    DS = augment.Transpose(ndim=3)
     # test fed axes
     db_tran = DS(db_mod, axes=(1, 2, 0))
     assert db_tran.shape == (64, 32, 128)
@@ -56,10 +56,10 @@ def test_transforms():
         assert box_tran[i].shape == (64, 32, 128)
 
     # slice
-    S = dataset.Slice(slices=[slice(0, 10), slice(None), slice(None)])
+    S = augment.Slice(slices=[slice(0, 10), slice(None), slice(None)])
     db_mod = S(db)
     assert db_mod.shape == (10, 128, 128)
-    S = dataset.Slice(slices=slice(0, 10))
+    S = augment.Slice(slices=slice(0, 10))
     db_mod = S(db)
     assert db_mod.shape == (10, 10, 10)
     # test box
@@ -92,7 +92,7 @@ def test_dataset():
     assert (dl[0][1] == y).all()
 
     # load with transformation
-    trans = Compose([dataset.Roll(shift=(20,20,20), ndim=3), dataset.DownSample(thin=2, ndim=3)])
+    trans = Compose([augment.Roll(shift=(20,20,20), ndim=3), augment.DownSample(thin=2, ndim=3)])
     dl = dataset.BoxDataset(Xfiles, yfiles, read_X=load, read_y=load, transform=trans)
     assert len(dl) == 1
     assert dl[0][0].shape == X.shape[:1] + torch.Size(np.array(X.shape[1:])//2)
@@ -108,7 +108,7 @@ def test_augmentations():
     y = load(yfiles[0])
 
     # test single augmentation
-    aug = dataset.Logarithm(offset=-1)
+    aug = augment.Logarithm(offset=-1)
     X_aug = aug(X[0])
     assert not np.isnan(X_aug).any()
     assert np.isclose(X[0], aug(X_aug, undo=True), atol=1e-6).all()
@@ -120,13 +120,13 @@ def test_augmentations():
         else:
             return x - 5
 
-    multi_aug = dataset.ComposeAugments([aug, shift])
+    multi_aug = augment.ComposeAugments([aug, shift])
     X_aug2 = multi_aug(X[0])
     assert np.isclose(X_aug + 5, X_aug2, atol=1e-7).all()
     assert np.isclose(X[0], multi_aug(X_aug2, undo=True), atol=1e-6).all()
 
     # try with dataset: only one augmentation for both X and y
-    Xaugment, yaugment = dataset.Logarithm(offset=-1), dataset.Logarithm(offset=-1)
+    Xaugment, yaugment = augment.Logarithm(offset=-1), augment.Logarithm(offset=-1)
     dl = dataset.BoxDataset(Xfiles, yfiles, read_X=load, read_y=load)
     dl_aug = dataset.BoxDataset(Xfiles, yfiles, read_X=load, read_y=load,
                                 X_augment=Xaugment, y_augment=yaugment)
@@ -140,8 +140,8 @@ def test_augmentations():
     assert np.isclose(y, dl_aug.augment(Xaug, yaug, undo=True)[1], atol=1e-6).all()
 
     # try with some augmentation for X and y channels
-    Xaugment = [dataset.Logarithm(offset=-1), None]
-    yaugment = [None, dataset.Logarithm()]
+    Xaugment = [augment.Logarithm(offset=-1), None]
+    yaugment = [None, augment.Logarithm()]
     dl = dataset.BoxDataset(Xfiles, yfiles, read_X=load, read_y=load)
     dl_aug = dataset.BoxDataset(Xfiles, yfiles, read_X=load, read_y=load,
                                 X_augment=Xaugment, y_augment=yaugment)
@@ -159,7 +159,7 @@ def test_augmentations():
     # try with no aug for y and check memory location
     _X = load(Xfiles[0])
     _y = load(yfiles[0])
-    Xaugment, yaugment = dataset.Logarithm(offset=-1), None
+    Xaugment, yaugment = augment.Logarithm(offset=-1), None
     dl_aug = dataset.BoxDataset([_X], [_y], X_augment=Xaugment, y_augment=yaugment)
     Xaug, yaug = dl_aug[0]
     # assert X was copied, but y was not, even though inplace=False in augmentation

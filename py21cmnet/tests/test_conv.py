@@ -7,7 +7,7 @@ from torchvision.transforms import Compose
 import os
 import yaml
 
-from py21cmnet import utils, models, dataset
+from py21cmnet import utils, conv, dataset, augment
 from py21cmnet.config import CONFIG_PATH
 from py21cmnet.data import DATA_PATH
 
@@ -19,9 +19,15 @@ fname = os.path.join(DATA_PATH, "train_21cmfast_basic.h5")
 def test_conv():
     for ndim in [2, 3]:
         X, y = utils.read_test_data(fname, ndim)
-        conv_kwargs = dict(in_channels=2, out_channels=5, kernel_size=3, padding=1)
-        C = models.ConvNd(conv_kwargs, conv='Conv{}d'.format(ndim),
-                          batch_norm='BatchNorm{}d'.format(ndim), dropout='Dropout{}d'.format(ndim))
+        conv_kwgs = dict(in_channels=2, out_channels=5, kernel_size=3, padding=1)
+        norm_kwgs = dict(num_features=5)
+        C = conv.ConvNd(
+            conv_kwgs,
+            conv='Conv{}d'.format(ndim),
+            norm='BatchNorm{}d'.format(ndim),
+            dropout='Dropout{}d'.format(ndim),
+            norm_kwargs=norm_kwgs,
+        )
         assert C(X).shape == X.shape[:1] + (5,) + X.shape[2:]
 
 
@@ -29,20 +35,20 @@ def test_upsample():
     for ndim in [2, 3]:
         X, y = utils.read_test_data(fname, ndim)
         conv_kwargs = dict(in_channels=2, out_channels=5, kernel_size=3, padding=1)
-        U = models.UpSample(dict(scale_factor=2), conv_kwargs, conv='Conv{}d'.format(ndim))
+        U = conv.UpSample(dict(scale_factor=2), conv_kwargs, conv='Conv{}d'.format(ndim))
         assert U(X).shape == X.shape[:1] + (5,) + tuple(np.array(X.shape[2:])*2)
 
 
 def test_encoder():
     for ndim in [2, 3]:
         X, y = utils.read_test_data(fname, ndim)
-        conv1 = dict(conv="Conv{}d".format(ndim), batch_norm='BatchNorm{}d'.format(ndim),
-                     dropout='Dropout{}d'.format(ndim),
+        conv1 = dict(conv="Conv{}d".format(ndim), norm='BatchNorm{}d'.format(ndim),
+                     dropout='Dropout{}d'.format(ndim), norm_kwargs=dict(num_features=5),
                      conv_kwargs=dict(in_channels=2, out_channels=5, kernel_size=3, padding=1))
-        conv2 = dict(conv="Conv{}d".format(ndim), batch_norm='BatchNorm{}d'.format(ndim),
-                     dropout='Dropout{}d'.format(ndim),
+        conv2 = dict(conv="Conv{}d".format(ndim), norm='BatchNorm{}d'.format(ndim),
+                     dropout='Dropout{}d'.format(ndim), norm_kwargs=dict(num_features=10),
                      conv_kwargs=dict(in_channels=5, out_channels=10, kernel_size=3, padding=1))
-        E = models.Encoder([conv1, conv2], pool='MaxPool{}d'.format(ndim), pool_kwargs=dict(kernel_size=2))
+        E = conv.ConvEncoder([conv1, conv2], pool='MaxPool{}d'.format(ndim), pool_kwargs=dict(kernel_size=2))
         assert E(X).shape == X.shape[:1] + (10,) + tuple(np.array(X.shape[2:])//2)
 
 
@@ -50,18 +56,18 @@ def test_decoder():
     for ndim in [2, 3]:
         for up_mode in ['upsample', 'ConvTranspose{}d'.format(ndim)]:
             X, y = utils.read_test_data(fname, ndim)
-            conv1 = dict(conv="Conv{}d".format(ndim), batch_norm='BatchNorm{}d'.format(ndim),
-                         dropout='Dropout{}d'.format(ndim),
+            conv1 = dict(conv="Conv{}d".format(ndim), norm='BatchNorm{}d'.format(ndim),
+                         dropout='Dropout{}d'.format(ndim), norm_kwargs=dict(num_features=4),
                          conv_kwargs=dict(in_channels=2, out_channels=4, kernel_size=3, padding=1))
-            conv2 = dict(conv="Conv{}d".format(ndim), batch_norm='BatchNorm{}d'.format(ndim),
-                         dropout='Dropout{}d'.format(ndim),
+            conv2 = dict(conv="Conv{}d".format(ndim), norm='BatchNorm{}d'.format(ndim),
+                         dropout='Dropout{}d'.format(ndim), norm_kwargs=dict(num_features=2),
                          conv_kwargs=dict(in_channels=4, out_channels=2, kernel_size=3, padding=1))
             if 'Conv' in up_mode:
                 up_kwargs = dict(in_channels=2, out_channels=1, kernel_size=3, padding=1, output_padding=1, stride=2)
             else:
                 up_kwargs = dict(upsample_kwargs=dict(scale_factor=2), conv='Conv{}d'.format(ndim),
                                  conv_kwargs=dict(in_channels=2, out_channels=1, kernel_size=3, padding=1))
-            D = models.Decoder([conv1, conv2], conv='Conv{}d'.format(ndim), up_kwargs=up_kwargs, up_mode=up_mode)
+            D = conv.ConvDecoder([conv1, conv2], conv='Conv{}d'.format(ndim), up_kwargs=up_kwargs, up_mode=up_mode)
             assert D(X).shape == X.shape[:1] + (1,) + tuple(np.array(X.shape[2:])*2)
 
             # test crop and concat for skip connection
@@ -73,7 +79,7 @@ def test_decoder():
             assert Xcrop_concat.shape == Xcrop.shape[:1] + (Xcrop.shape[1] * 2,) + Xcrop.shape[2:]
 
             conv1['conv_kwargs']['in_channels'] *= 2
-            D = models.Decoder([conv1, conv2], conv='Conv{}d'.format(ndim), up_kwargs=up_kwargs, up_mode=up_mode)
+            D = conv.ConvDecoder([conv1, conv2], conv='Conv{}d'.format(ndim), up_kwargs=up_kwargs, up_mode=up_mode)
             assert D(Xcrop, X).shape == X.shape[:1] + (1,) + tuple(np.array(X.shape[2:]))
 
 
@@ -86,17 +92,17 @@ def test_autoencoder():
         params = utils.load_autoencoder_params(config, defaults)
         # set seed for model generation
         torch.manual_seed(0)
-        model = models.AutoEncoder(**params)
+        model = conv.ConvAutoEncoder(**params)
         # pass tensor through
         out = model(X)
         assert out.shape == X.shape[:1] + (2,) + X.shape[2:]
 
         if ndim == 2:
             # only train 2d data for now (3d takes a while...)
-            ds = dataset.BoxDataset(X[:50], y[:50], utils.LoadDummy(), transform=dataset.Roll(ndim=ndim))
+            ds = dataset.BoxDataset(X[:50], y[:50], utils.LoadDummy(), transform=augment.Roll(ndim=ndim))
             dl = torch.utils.data.DataLoader(ds)
-            info = utils.train(model, dl, torch.nn.MSELoss(reduction='mean'), torch.optim.Adam,
-                               optim_kwargs=dict(lr=0.1), Nepochs=3, verbose=True)
+            optim = torch.optim.Adam(model.parameters(), lr=0.1)
+            info = utils.train(model, dl, torch.nn.MSELoss(reduction='mean'), optim, Nepochs=3, verbose=True)
             # assert average loss decreases
             loss = torch.stack(info['train_loss']).cpu()
             loss_start = torch.mean(loss[:len(loss)//2])

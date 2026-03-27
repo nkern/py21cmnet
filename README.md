@@ -12,11 +12,8 @@ Clone this repository as
 
 `cd` into the directory and install as
 
-`pip install -e .`
+`pip install .`
 
-or
-
-`python setup.py install`
 
 ### Dependencies
 
@@ -38,15 +35,18 @@ following the examples in `py21cmnet/config`.
 
 ```python
 import os
+import numpy as np
 import torch
-from py21cmnet import models, utils, dataset
+from py21cmnet import conv, utils, dataset, augment
 from py21cmnet.data import DATA_PATH
 from py21cmnet.config import CONFIG_PATH
 
 # load a model
 params = utils.load_autoencoder_params(os.path.join(CONFIG_PATH, "autoencoder.yaml"),
                                        os.path.join(CONFIG_PATH, "autoencoder2d_defaults.yaml"))
-model = models.AutoEncoder(**params)
+
+# instantiate the model
+model = conv.ConvAutoEncoder(**params)
 
 # load a dataset
 fname = os.path.join(DATA_PATH, "train_21cmfast_basic.h5")
@@ -56,8 +56,8 @@ X, y = utils.read_test_data(fname, ndim=2)
 out = model(X)
 
 # train the model
-ds = dataset.BoxDataset(X, y, transform=dataset.Roll(ndim=2))
+ds = dataset.BoxDataset(X, y, transform=augment.Roll(ndim=2))
 dl = torch.utils.data.DataLoader(ds)
-info = utils.train(model, dl, torch.nn.MSELoss(reduction='mean'), torch.optim.Adam,
-                   optim_kwargs=dict(lr=0.01), Nepochs=3)
+optim = torch.optim.Adam(model.parameters(), lr=0.01)
+info = utils.train(model, dl, torch.nn.MSELoss(reduction='mean'), optim, Nepochs=3)
 ```
