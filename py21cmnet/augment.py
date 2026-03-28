@@ -244,7 +244,7 @@ class RectMask:
                 for s, l, h in zip(self.size, self.low, self.high):
                     start = torch.randint(l, h, (1,))
                     crop.append(slice(start, start + s))
-                mask[..., *tuple(crop)] = 0.0
+                mask[(...,) + tuple(crop)] = 0.0
 
         if isinstance(box, (list, tuple)):
             return [self.__call__(b, mask=mask) for b in box]
