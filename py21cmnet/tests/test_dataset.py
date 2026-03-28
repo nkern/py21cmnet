@@ -7,7 +7,7 @@ from torchvision.transforms import Compose
 import os
 import yaml
 
-from py21cmnet import utils, models, dataset, augment
+from py21cmnet import utils, dataset, augment
 from py21cmnet.config import CONFIG_PATH
 from py21cmnet.data import DATA_PATH
 
