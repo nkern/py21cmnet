@@ -202,7 +202,7 @@ class Crop:
         if isinstance(box, (list, tuple)):
             return [self.__call__(b, crop=crop) for b in box]
 
-        return box[..., *crop]
+        return box[(...,) + tuple(crop)]
 
 
 class RectMask:
